@@ -57,18 +57,31 @@ namespace MyUserApp.ViewModels
 
         private void SubmitReport(object obj)
         {
+            // --- NEW: Construct the project name from form data ---
+            string projectName = $"{this.SelectedAircraftType} - {this.TailNumber} ({this.SelectedAircraftSide})";
+
+            // Create the report model...
             var newReport = new InspectionReportModel
             {
+                // --- NEW: Assign the constructed name ---
+                ProjectName = projectName,
+
+                // ... and assign the rest of the properties as before
                 AircraftType = this.SelectedAircraftType,
                 TailNumber = this.TailNumber,
                 AircraftSide = this.SelectedAircraftSide,
                 Reason = this.SelectedReason,
                 InspectorName = this.InspectorName,
                 VerifierName = this.VerifierName,
-                ImagePaths = new System.Collections.Generic.List<string>(this.SelectedImagePaths)
+                ImagePaths = new System.Collections.Generic.List<string>(this.SelectedImagePaths) // Copy images logic should also be here if you have it
             };
+
+            // Use the central service to add the report.
             ReportService.Instance.AddReport(newReport);
+
             MessageBox.Show("Report submitted successfully!", "Success");
+
+            // Signal that we are finished.
             OnFinished?.Invoke();
         }
 

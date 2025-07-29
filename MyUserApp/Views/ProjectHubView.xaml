@@ -1,51 +1,94 @@
-﻿<!-- Views/ProjectHubView.xaml -->
-<UserControl x:Class="MyUserApp.Views.ProjectHubView"
+﻿<UserControl x:Class="MyUserApp.Views.ProjectHubView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="550" d:DesignWidth="900">
+
+    <!-- The main layout is a Grid with a header row and a content row. -->
     <Grid Margin="15">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <!-- Row for the Header and Welcome message. -->
             <RowDefinition Height="*"/>
+            <!-- Row for the main content area. -->
         </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <StackPanel>
+        <!-- ======================================================= -->
+        <!-- ==                  MAIN HEADER                      == -->
+        <!-- ======================================================= -->
+        <StackPanel Grid.Row="0">
+            <!-- First line with Welcome message and Logout button. -->
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="{Binding WelcomeMessage}" FontSize="24" FontWeight="Bold"/>
-                <Button Content="Logout" Command="{Binding LogoutCommand}" Margin="50,0,0,0" Width="80"/>
+                <Button Content="Logout" Command="{Binding LogoutCommand}" Margin="50,0,0,0" Width="80" VerticalAlignment="Center"/>
             </StackPanel>
+            <!-- Second line with descriptive text. -->
             <TextBlock Text="You can start a new project or view one of your recent projects below." Margin="0,5,0,0" Foreground="Gray"/>
         </StackPanel>
 
-        <!-- Main Content Area -->
+        <!-- ======================================================= -->
+        <!-- ==                MAIN CONTENT AREA                  == -->
+        <!-- ======================================================= -->
+        <!-- This Grid divides the content area into Actions, Project List, and Image Preview. -->
         <Grid Grid.Row="1" Margin="0,20,0,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="250"/>
-                <!-- Actions Column -->
+                <ColumnDefinition Width="220"/>
+                <!-- Left Column for Actions (Start New, etc.). -->
                 <ColumnDefinition Width="*"/>
-                <!-- Recent Projects Column -->
+                <!-- Middle Column for the list of projects. -->
+                <ColumnDefinition Width="300"/>
+                <!-- Right Column for the image preview. -->
             </Grid.ColumnDefinitions>
 
-            <!-- Left Column for Actions -->
+            <!-- ======================================================= -->
+            <!-- ==                  ACTIONS COLUMN                   == -->
+            <!-- ======================================================= -->
             <StackPanel Grid.Column="0" Margin="0,0,20,0">
                 <Button Content="Start New Project" 
                         Command="{Binding StartNewProjectCommand}" 
-                        Padding="10" FontSize="16" FontWeight="Bold"/>
-                <!-- We can add more buttons here later, like "Open Selected Project" -->
+                        Padding="10" FontSize="16" FontWeight="Bold"
+                        ToolTip="Begin a new inspection report."/>
+                <!-- More buttons can be added here in the future, e.g., "Open Selected Project". -->
             </StackPanel>
 
-            <!-- Right Column for the list -->
+            <!-- ======================================================= -->
+            <!-- ==             RECENT PROJECTS COLUMN                == -->
+            <!-- ======================================================= -->
             <GroupBox Grid.Column="1" Header="Recent Projects">
-                <ListView ItemsSource="{Binding RecentProjects}">
+                <!-- 
+                This ListView is bound to the RecentProjects collection in the ViewModel.
+                Crucially, the 'SelectedItem' is bound to the 'SelectedProject' property.
+                When a user clicks an item in the list, the 'SelectedProject' property in the ViewModel
+                gets updated, which in turn updates the Image Preview.
+                -->
+                <ListView ItemsSource="{Binding RecentProjects}"
+                          SelectedItem="{Binding SelectedProject}">
                     <ListView.View>
                         <GridView>
-                            <GridViewColumn Header="Aircraft Type" DisplayMemberBinding="{Binding AircraftType}" Width="120"/>
-                            <GridViewColumn Header="Tail #" DisplayMemberBinding="{Binding TailNumber}" Width="80"/>
+                            <!-- UPDATED: This column now shows the full, formatted project name. -->
+                            <GridViewColumn Header="Project Name" DisplayMemberBinding="{Binding ProjectName}" Width="300"/>
                             <GridViewColumn Header="Inspector" DisplayMemberBinding="{Binding InspectorName}" Width="120"/>
                             <GridViewColumn Header="Date" DisplayMemberBinding="{Binding Timestamp, StringFormat='g'}" Width="150"/>
                         </GridView>
                     </ListView.View>
                 </ListView>
+            </GroupBox>
+
+            <!-- ======================================================= -->
+            <!-- ==                IMAGE PREVIEW COLUMN               == -->
+            <!-- ======================================================= -->
+            <GroupBox Grid.Column="2" Header="Image Preview" Margin="20,0,0,0">
+                <!-- 
+                This Image control's Source is bound to the first image in the selected project's list of paths.
+                WPF automatically handles converting the file path string into a displayable image.
+                If no project is selected or the selected project has no images, nothing will be displayed.
+                The [0] indexer gets the first element of the ImagePaths list.
+                -->
+                <Image Source="{Binding SelectedProject.ImagePaths[0]}"
+                       Stretch="Uniform"
+                       Margin="5"/>
             </GroupBox>
         </Grid>
     </Grid>

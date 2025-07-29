@@ -5,6 +5,7 @@ namespace MyUserApp.Models
     // This class represents a single data entry report.
     public class InspectionReportModel
     {
+        public string ProjectName { get; set; }
         public Guid ReportId { get; set; } = Guid.NewGuid();
         public DateTime Timestamp { get; set; } = DateTime.Now;
         public string AircraftType { get; set; }

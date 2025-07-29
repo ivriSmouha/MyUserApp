@@ -16,7 +16,7 @@
         </Grid.RowDefinitions>
 
         <!-- ======================================================= -->
-        <!-- ==                  MAIN HEADER                      == -->
+        <!--                  MAIN HEADER                            -->
         <!-- ======================================================= -->
         <StackPanel Grid.Row="0" Orientation="Horizontal">
             <TextBlock Text="Administrator Panel" FontSize="24" FontWeight="Bold"/>
@@ -28,13 +28,13 @@
         </StackPanel>
 
         <!-- ======================================================= -->
-        <!-- ==                 MAIN TAB CONTROL                  == -->
+        <!--                 MAIN TAB CONTROL                        -->
         <!-- ======================================================= -->
         <!-- This TabControl separates the different admin responsibilities into clean sections. -->
         <TabControl Grid.Row="1" Margin="0,15,0,0">
 
             <!-- ======================================================= -->
-            <!-- ==             TAB 1: USER MANAGEMENT                == -->
+            <!--             TAB 1: USER MANAGEMENT                      -->
             <!-- ======================================================= -->
             <TabItem Header="User Management">
                 <Grid>
@@ -66,16 +66,11 @@
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-
                             <TextBlock Text="Username:" Margin="5" VerticalAlignment="Center"/>
                             <TextBox Grid.Column="1" Margin="5" Text="{Binding NewUsername, UpdateSourceTrigger=PropertyChanged}"/>
-
                             <TextBlock Grid.Column="2" Text="Password:" Margin="5" VerticalAlignment="Center"/>
                             <TextBox Grid.Column="3" Margin="5" Text="{Binding NewPassword, UpdateSourceTrigger=PropertyChanged}"/>
-
-                            <CheckBox Grid.Column="4" Content="Is Admin?" VerticalAlignment="Center" Margin="10,0"
-                                      IsChecked="{Binding NewUserIsAdmin}"/>
-
+                            <CheckBox Grid.Column="4" Content="Is Admin?" VerticalAlignment="Center" Margin="10,0" IsChecked="{Binding NewUserIsAdmin}"/>
                             <Button Grid.Column="5" Content="Add User" Margin="5" Command="{Binding AddUserCommand}"/>
                         </Grid>
                     </GroupBox>
@@ -83,7 +78,7 @@
             </TabItem>
 
             <!-- ======================================================= -->
-            <!-- ==             TAB 2: OPTIONS MANAGEMENT             == -->
+            <!--             TAB 2: OPTIONS MANAGEMENT                   -->
             <!-- ======================================================= -->
             <TabItem Header="Options Management">
                 <Grid>
@@ -100,8 +95,6 @@
                                 <RowDefinition Height="*"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-
-                            <!-- List of current aircraft types with a delete button for each. -->
                             <ListView Grid.Row="0" ItemsSource="{Binding AppOptions.AircraftTypes}">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
@@ -110,18 +103,12 @@
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <!-- The TextBlock binds to the string item itself. -->
                                             <TextBlock Text="{Binding .}" VerticalAlignment="Center"/>
-                                            <!-- The Delete button. Its command must find the ViewModel using RelativeSource. -->
-                                            <Button Grid.Column="1" Content="Delete" FontSize="10"
-                                                    Command="{Binding DataContext.DeleteAircraftTypeCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
-                                                    CommandParameter="{Binding .}"/>
+                                            <Button Grid.Column="1" Content="Delete" FontSize="10" Command="{Binding DataContext.DeleteAircraftTypeCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding .}"/>
                                         </Grid>
                                     </DataTemplate>
                                 </ListView.ItemTemplate>
                             </ListView>
-
-                            <!-- Form to add a new aircraft type -->
                             <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
                                 <TextBox Text="{Binding NewAircraftType, UpdateSourceTrigger=PropertyChanged}" Width="150" Margin="5"/>
                                 <Button Content="Add" Command="{Binding AddAircraftTypeCommand}" Margin="5"/>
@@ -129,17 +116,61 @@
                         </Grid>
                     </GroupBox>
 
-                    <!-- NOTE: You would repeat the GroupBox structure for AircraftSides and Reasons in columns 1 and 2 -->
-                    <!-- Example placeholder for Aircraft Sides -->
+                    <!-- Column for managing Aircraft Sides -->
                     <GroupBox Grid.Column="1" Header="Aircraft Sides" Margin="5">
-                        <!-- UI for managing Aircraft Sides would go here, following the same pattern. -->
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <ListView Grid.Row="0" ItemsSource="{Binding AppOptions.AircraftSides}">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Width="200">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding .}" VerticalAlignment="Center"/>
+                                            <Button Grid.Column="1" Content="Delete" FontSize="10" Command="{Binding DataContext.DeleteAircraftSideCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding .}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
+                                <TextBox Text="{Binding NewAircraftSide, UpdateSourceTrigger=PropertyChanged}" Width="150" Margin="5"/>
+                                <Button Content="Add" Command="{Binding AddAircraftSideCommand}" Margin="5"/>
+                            </StackPanel>
+                        </Grid>
                     </GroupBox>
 
-                    <!-- Example placeholder for Reasons -->
+                    <!-- Column for managing Reasons -->
                     <GroupBox Grid.Column="2" Header="Reasons" Margin="5">
-                        <!-- UI for managing Reasons would go here, following the same pattern. -->
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <ListView Grid.Row="0" ItemsSource="{Binding AppOptions.Reasons}">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Width="200">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding .}" VerticalAlignment="Center"/>
+                                            <Button Grid.Column="1" Content="Delete" FontSize="10" Command="{Binding DataContext.DeleteReasonCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding .}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
+                                <TextBox Text="{Binding NewReason, UpdateSourceTrigger=PropertyChanged}" Width="150" Margin="5"/>
+                                <Button Content="Add" Command="{Binding AddReasonCommand}" Margin="5"/>
+                            </StackPanel>
+                        </Grid>
                     </GroupBox>
-
                 </Grid>
             </TabItem>
         </TabControl>

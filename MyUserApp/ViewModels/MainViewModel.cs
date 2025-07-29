@@ -1,9 +1,9 @@
-﻿using MyUserApp.Models;
+﻿// ViewModels/MainViewModel.cs
+using MyUserApp.Models;
 using System.Linq;
 
 namespace MyUserApp.ViewModels
 {
-    // The application's main navigator. Its only job is to switch between top-level screens.
     public class MainViewModel : BaseViewModel
     {
         private BaseViewModel _currentView;
@@ -48,7 +48,13 @@ namespace MyUserApp.ViewModels
         private void ShowReportEntryScreen(UserModel user)
         {
             var reportEntryVM = new ReportEntryViewModel(user);
+            // This line handles the "Submit" or "Cancel" action.
             reportEntryVM.OnFinished += () => ShowProjectHub(user);
+
+            // --- THIS IS THE FIX ---
+            // This line listens for the logout request and navigates back to the login screen.
+            reportEntryVM.OnLogoutRequested += ShowLoginView;
+
             CurrentView = reportEntryVM;
         }
 

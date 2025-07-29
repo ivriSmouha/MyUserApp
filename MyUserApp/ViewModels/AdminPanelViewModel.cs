@@ -1,4 +1,5 @@
-﻿using MyUserApp.Models;
+﻿// ViewModels/AdminPanelViewModel.cs
+using MyUserApp.Models;
 using MyUserApp.Services;
 using System;
 using System.Collections.ObjectModel;
@@ -9,10 +10,9 @@ using System.Windows.Input;
 
 namespace MyUserApp.ViewModels
 {
-    // This ViewModel controls the entire admin screen, including its tabs.
     public class AdminPanelViewModel : BaseViewModel
     {
-        // User management properties
+        // --- User management properties (no changes) ---
         private string _newUsername;
         public string NewUsername { get => _newUsername; set { _newUsername = value; OnPropertyChanged(); } }
         private string _newPassword;
@@ -21,24 +21,33 @@ namespace MyUserApp.ViewModels
         public bool NewUserIsAdmin { get => _newUserIsAdmin; set { _newUserIsAdmin = value; OnPropertyChanged(); } }
         public ObservableCollection<UserModel> Users { get; set; }
 
-        // Options management properties
+        // --- Options management properties ---
         public AppOptionsModel AppOptions => OptionsService.Instance.Options;
         private string _newAircraftType;
         public string NewAircraftType { get => _newAircraftType; set { _newAircraftType = value; OnPropertyChanged(); } }
+        // --- NEW: Properties for other options ---
+        private string _newAircraftSide;
+        public string NewAircraftSide { get => _newAircraftSide; set { _newAircraftSide = value; OnPropertyChanged(); } }
+        private string _newReason;
+        public string NewReason { get => _newReason; set { _newReason = value; OnPropertyChanged(); } }
 
-        // Commands
+        // --- Commands ---
         public ICommand AddUserCommand { get; }
         public ICommand LogoutCommand { get; }
         public ICommand AddAircraftTypeCommand { get; }
         public ICommand DeleteAircraftTypeCommand { get; }
+        // --- NEW: Commands for other options ---
+        public ICommand AddAircraftSideCommand { get; }
+        public ICommand DeleteAircraftSideCommand { get; }
+        public ICommand AddReasonCommand { get; }
+        public ICommand DeleteReasonCommand { get; }
 
-        // Events
         public event Action OnLogoutRequested;
         private readonly string _userFilePath = "users.json";
 
         public AdminPanelViewModel()
         {
-            // User management setup
+            // User management setup (no changes)
             LoadUsers();
             AddUserCommand = new RelayCommand(AddNewUser, CanAddNewUser);
             LogoutCommand = new RelayCommand(param => OnLogoutRequested?.Invoke());
@@ -46,12 +55,16 @@ namespace MyUserApp.ViewModels
             // Options management setup
             AddAircraftTypeCommand = new RelayCommand(AddAircraftType, _ => !string.IsNullOrEmpty(NewAircraftType));
             DeleteAircraftTypeCommand = new RelayCommand(DeleteAircraftType);
+            // --- NEW: Initialize new commands ---
+            AddAircraftSideCommand = new RelayCommand(AddAircraftSide, _ => !string.IsNullOrEmpty(NewAircraftSide));
+            DeleteAircraftSideCommand = new RelayCommand(DeleteAircraftSide);
+            AddReasonCommand = new RelayCommand(AddReason, _ => !string.IsNullOrEmpty(NewReason));
+            DeleteReasonCommand = new RelayCommand(DeleteReason);
         }
 
-        // ... (All AddUser, LoadUser, etc. methods from previous steps go here)
+        // --- Options management logic ---
         private void AddAircraftType(object obj)
         {
-            if (string.IsNullOrWhiteSpace(NewAircraftType)) return;
             OptionsService.Instance.Options.AircraftTypes.Add(NewAircraftType);
             OptionsService.Instance.SaveOptions();
             NewAircraftType = "";
@@ -68,7 +81,45 @@ namespace MyUserApp.ViewModels
             }
         }
 
-        // --- User management logic (unchanged) ---
+        // --- NEW: Logic for other options (repeating the pattern) ---
+        private void AddAircraftSide(object obj)
+        {
+            OptionsService.Instance.Options.AircraftSides.Add(NewAircraftSide);
+            OptionsService.Instance.SaveOptions();
+            NewAircraftSide = "";
+            OnPropertyChanged(nameof(AppOptions));
+        }
+
+        private void DeleteAircraftSide(object obj)
+        {
+            if (obj is string sideToDelete)
+            {
+                OptionsService.Instance.Options.AircraftSides.Remove(sideToDelete);
+                OptionsService.Instance.SaveOptions();
+                OnPropertyChanged(nameof(AppOptions));
+            }
+        }
+
+        private void AddReason(object obj)
+        {
+            OptionsService.Instance.Options.Reasons.Add(NewReason);
+            OptionsService.Instance.SaveOptions();
+            NewReason = "";
+            OnPropertyChanged(nameof(AppOptions));
+        }
+
+        private void DeleteReason(object obj)
+        {
+            if (obj is string reasonToDelete)
+            {
+                OptionsService.Instance.Options.Reasons.Remove(reasonToDelete);
+                OptionsService.Instance.SaveOptions();
+                OnPropertyChanged(nameof(AppOptions));
+            }
+        }
+
+        // --- User management logic (no changes) ---
+        // ... (Methods like AddNewUser, LoadUsers, etc. remain here)
         private void AddNewUser(object obj)
         {
             if (Users.Any(u => u.Username == NewUsername))
