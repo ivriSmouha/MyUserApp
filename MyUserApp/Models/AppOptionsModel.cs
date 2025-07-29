@@ -1,11 +1,12 @@
 ﻿using System.Collections.Generic;
+using System.Collections.ObjectModel;
 namespace MyUserApp.Models
 {
     // This class holds the lists of choices for all dropdowns in the app.
     public class AppOptionsModel
     {
-        public List<string> AircraftTypes { get; set; } = new List<string>();
-        public List<string> AircraftSides { get; set; } = new List<string>();
-        public List<string> Reasons { get; set; } = new List<string>();
+        public ObservableCollection<string> AircraftTypes { get; set; } = new ObservableCollection<string>();
+        public ObservableCollection<string> AircraftSides { get; set; } = new ObservableCollection<string>();
+        public ObservableCollection<string> Reasons { get; set; } = new ObservableCollection<string>();
     }
 }

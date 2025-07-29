@@ -1,4 +1,5 @@
-﻿using MyUserApp.Models;
+﻿// ViewModels/ProjectHubViewModel.cs
+using MyUserApp.Models;
 using MyUserApp.Services;
 using System;
 using System.Collections.ObjectModel;
@@ -6,14 +7,29 @@ using System.Windows.Input;
 
 namespace MyUserApp.ViewModels
 {
-    // The ViewModel for the non-admin user's home screen.
     public class ProjectHubViewModel : BaseViewModel
     {
+        // --- Existing Properties ---
         public string WelcomeMessage { get; }
         public ObservableCollection<InspectionReportModel> RecentProjects { get; }
+
+        // --- THIS IS THE FIX ---
+        // A property to store the report that is currently selected in the ListView.
+        private InspectionReportModel _selectedProject;
+        public InspectionReportModel SelectedProject
+        {
+            get => _selectedProject;
+            set
+            {
+                _selectedProject = value;
+                // This notifies the UI that the selection has changed, so the image preview should update.
+                OnPropertyChanged();
+            }
+        }
+
+        // --- Commands and Events (no changes) ---
         public ICommand StartNewProjectCommand { get; }
         public ICommand LogoutCommand { get; }
-
         public event Action OnLogoutRequested;
         public event Action<UserModel> OnStartNewProjectRequested;
         private readonly UserModel _currentUser;

@@ -1,16 +1,17 @@
-﻿using MyUserApp.Models;
+﻿// Services/OptionsService.cs
+using MyUserApp.Models;
 using System.IO;
 using System.Text.Json;
+// --- ADD THIS USING STATEMENT ---
+using System.Collections.ObjectModel;
 
 namespace MyUserApp.Services
 {
-    // Singleton service to manage application-wide dropdown options.
     public class OptionsService
     {
         private const string FilePath = "app_options.json";
         private static readonly OptionsService _instance = new OptionsService();
         public static OptionsService Instance => _instance;
-
         public AppOptionsModel Options { get; private set; }
 
         private OptionsService() { LoadOptions(); }
@@ -20,7 +21,13 @@ namespace MyUserApp.Services
             if (File.Exists(FilePath))
             {
                 var json = File.ReadAllText(FilePath);
-                Options = JsonSerializer.Deserialize<AppOptionsModel>(json);
+                var loadedOptions = JsonSerializer.Deserialize<AppOptionsModel>(json);
+                Options = new AppOptionsModel
+                {
+                    AircraftTypes = new ObservableCollection<string>(loadedOptions.AircraftTypes),
+                    AircraftSides = new ObservableCollection<string>(loadedOptions.AircraftSides),
+                    Reasons = new ObservableCollection<string>(loadedOptions.Reasons)
+                };
             }
             else
             {
