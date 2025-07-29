@@ -4,6 +4,8 @@ using MyUserApp.Services;
 using Microsoft.Win32;
 using System;
 using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq; // Add this for LINQ
 using System.Windows;
 using System.Windows.Input;
 
@@ -11,10 +13,14 @@ namespace MyUserApp.ViewModels
 {
     public class ReportEntryViewModel : BaseViewModel
     {
-        // --- All existing properties remain the same ---
+        // --- Dropdown options ---
         public ObservableCollection<string> AircraftTypes { get; }
         public ObservableCollection<string> AircraftSides { get; }
         public ObservableCollection<string> Reasons { get; }
+        // --- NEW: A list to hold usernames for the Inspector/Verifier dropdowns ---
+        public ObservableCollection<string> Usernames { get; }
+
+        // --- Form Data Properties ---
         private string _selectedAircraftType;
         public string SelectedAircraftType { get => _selectedAircraftType; set { _selectedAircraftType = value; OnPropertyChanged(); } }
         private string _tailNumber;
@@ -23,68 +29,78 @@ namespace MyUserApp.ViewModels
         public string SelectedAircraftSide { get => _selectedAircraftSide; set { _selectedAircraftSide = value; OnPropertyChanged(); } }
         private string _selectedReason;
         public string SelectedReason { get => _selectedReason; set { _selectedReason = value; OnPropertyChanged(); } }
-        private string _inspectorName;
-        public string InspectorName { get => _inspectorName; set { _inspectorName = value; OnPropertyChanged(); } }
-        private string _verifierName;
-        public string VerifierName { get => _verifierName; set { _verifierName = value; OnPropertyChanged(); } }
+
+        // --- RENAMED: These are now for the selected item in the ComboBox ---
+        private string _selectedInspector;
+        public string SelectedInspector { get => _selectedInspector; set { _selectedInspector = value; OnPropertyChanged(); } }
+        private string _selectedVerifier;
+        public string SelectedVerifier { get => _selectedVerifier; set { _selectedVerifier = value; OnPropertyChanged(); } }
+
+        // ... (Image selection, commands, and events are the same)
         public ObservableCollection<string> SelectedImagePaths { get; }
         public ICommand SelectImagesCommand { get; }
         public ICommand SubmitReportCommand { get; }
         public ICommand CancelCommand { get; }
         public event Action OnFinished;
-
-        // --- CHANGE #1: Add the LogoutCommand property and its event ---
         public ICommand LogoutCommand { get; }
         public event Action OnLogoutRequested;
 
         public ReportEntryViewModel(UserModel user)
         {
-            InspectorName = user.Username;
+            // Load dropdown options from services
             var options = OptionsService.Instance.Options;
             AircraftTypes = new ObservableCollection<string>(options.AircraftTypes);
             AircraftSides = new ObservableCollection<string>(options.AircraftSides);
             Reasons = new ObservableCollection<string>(options.Reasons);
+
+            // --- NEW: Load usernames from the UserService ---
+            // Use LINQ's .Select() to get just the Username string from each UserModel
+            var allUsernames = UserService.Instance.Users.Select(u => u.Username);
+            Usernames = new ObservableCollection<string>(allUsernames);
+
+            // Set the inspector to the current user automatically.
+            SelectedInspector = user.Username;
+
+            // ... (Initialize commands and image paths as before)
             SelectedImagePaths = new ObservableCollection<string>();
-
-            // --- Initialize existing commands ---
             SelectImagesCommand = new RelayCommand(SelectImages);
-            SubmitReportCommand = new RelayCommand(SubmitReport, CanSubmitReport);
+            SubmitReportCommand = new RelayCommand(SubmitReport, _ => CanSubmitReport());
             CancelCommand = new RelayCommand(param => OnFinished?.Invoke());
-
-            // --- CHANGE #2: Initialize the new LogoutCommand ---
             LogoutCommand = new RelayCommand(param => OnLogoutRequested?.Invoke());
         }
 
         private void SubmitReport(object obj)
         {
-            // --- NEW: Construct the project name from form data ---
             string projectName = $"{this.SelectedAircraftType} - {this.TailNumber} ({this.SelectedAircraftSide})";
+            string reportImageFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ReportImages", Guid.NewGuid().ToString());
+            Directory.CreateDirectory(reportImageFolder);
+            var newImagePaths = new System.Collections.Generic.List<string>();
+            foreach (string originalPath in this.SelectedImagePaths)
+            {
+                string fileName = Path.GetFileName(originalPath);
+                string destinationPath = Path.Combine(reportImageFolder, fileName);
+                try { File.Copy(originalPath, destinationPath); newImagePaths.Add(destinationPath); }
+                catch (Exception ex) { MessageBox.Show($"Error copying file {fileName}: {ex.Message}"); }
+            }
 
-            // Create the report model...
             var newReport = new InspectionReportModel
             {
-                // --- NEW: Assign the constructed name ---
                 ProjectName = projectName,
-
-                // ... and assign the rest of the properties as before
                 AircraftType = this.SelectedAircraftType,
                 TailNumber = this.TailNumber,
                 AircraftSide = this.SelectedAircraftSide,
                 Reason = this.SelectedReason,
-                InspectorName = this.InspectorName,
-                VerifierName = this.VerifierName,
-                ImagePaths = new System.Collections.Generic.List<string>(this.SelectedImagePaths) // Copy images logic should also be here if you have it
+                // --- RENAMED: Use the selected values from the dropdowns ---
+                InspectorName = this.SelectedInspector,
+                VerifierName = this.SelectedVerifier,
+                ImagePaths = newImagePaths
             };
-
-            // Use the central service to add the report.
             ReportService.Instance.AddReport(newReport);
-
             MessageBox.Show("Report submitted successfully!", "Success");
-
-            // Signal that we are finished.
             OnFinished?.Invoke();
         }
 
+        private bool CanSubmitReport() => !string.IsNullOrEmpty(SelectedAircraftType) && !string.IsNullOrEmpty(TailNumber) && !string.IsNullOrEmpty(SelectedInspector);
         private void SelectImages(object obj)
         {
             var openFileDialog = new OpenFileDialog { Multiselect = true, Filter = "Image Files|*.jpg;*.jpeg;*.png;*.gif;*.bmp" };
@@ -93,7 +109,5 @@ namespace MyUserApp.ViewModels
                 foreach (string filename in openFileDialog.FileNames) { SelectedImagePaths.Add(filename); }
             }
         }
-
-        private bool CanSubmitReport(object obj) => !string.IsNullOrEmpty(SelectedAircraftType) && !string.IsNullOrEmpty(TailNumber) && !string.IsNullOrEmpty(InspectorName);
     }
 }

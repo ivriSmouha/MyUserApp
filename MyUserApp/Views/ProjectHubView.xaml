@@ -6,68 +6,41 @@
              mc:Ignorable="d" 
              d:DesignHeight="550" d:DesignWidth="900">
 
-    <!-- The main layout is a Grid with a header row and a content row. -->
     <Grid Margin="15">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <!-- Row for the Header and Welcome message. -->
             <RowDefinition Height="*"/>
-            <!-- Row for the main content area. -->
         </Grid.RowDefinitions>
 
-        <!-- ======================================================= -->
-        <!-- ==                  MAIN HEADER                      == -->
-        <!-- ======================================================= -->
+        <!-- Header (no changes) -->
         <StackPanel Grid.Row="0">
-            <!-- First line with Welcome message and Logout button. -->
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="{Binding WelcomeMessage}" FontSize="24" FontWeight="Bold"/>
                 <Button Content="Logout" Command="{Binding LogoutCommand}" Margin="50,0,0,0" Width="80" VerticalAlignment="Center"/>
             </StackPanel>
-            <!-- Second line with descriptive text. -->
             <TextBlock Text="You can start a new project or view one of your recent projects below." Margin="0,5,0,0" Foreground="Gray"/>
         </StackPanel>
 
-        <!-- ======================================================= -->
-        <!-- ==                MAIN CONTENT AREA                  == -->
-        <!-- ======================================================= -->
-        <!-- This Grid divides the content area into Actions, Project List, and Image Preview. -->
+        <!-- Main Content Area (no changes) -->
         <Grid Grid.Row="1" Margin="0,20,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="220"/>
-                <!-- Left Column for Actions (Start New, etc.). -->
                 <ColumnDefinition Width="*"/>
-                <!-- Middle Column for the list of projects. -->
                 <ColumnDefinition Width="300"/>
-                <!-- Right Column for the image preview. -->
             </Grid.ColumnDefinitions>
 
-            <!-- ======================================================= -->
-            <!-- ==                  ACTIONS COLUMN                   == -->
-            <!-- ======================================================= -->
             <StackPanel Grid.Column="0" Margin="0,0,20,0">
                 <Button Content="Start New Project" 
                         Command="{Binding StartNewProjectCommand}" 
                         Padding="10" FontSize="16" FontWeight="Bold"
                         ToolTip="Begin a new inspection report."/>
-                <!-- More buttons can be added here in the future, e.g., "Open Selected Project". -->
             </StackPanel>
 
-            <!-- ======================================================= -->
-            <!-- ==             RECENT PROJECTS COLUMN                == -->
-            <!-- ======================================================= -->
             <GroupBox Grid.Column="1" Header="Recent Projects">
-                <!-- 
-                This ListView is bound to the RecentProjects collection in the ViewModel.
-                Crucially, the 'SelectedItem' is bound to the 'SelectedProject' property.
-                When a user clicks an item in the list, the 'SelectedProject' property in the ViewModel
-                gets updated, which in turn updates the Image Preview.
-                -->
                 <ListView ItemsSource="{Binding RecentProjects}"
                           SelectedItem="{Binding SelectedProject}">
                     <ListView.View>
                         <GridView>
-                            <!-- UPDATED: This column now shows the full, formatted project name. -->
                             <GridViewColumn Header="Project Name" DisplayMemberBinding="{Binding ProjectName}" Width="300"/>
                             <GridViewColumn Header="Inspector" DisplayMemberBinding="{Binding InspectorName}" Width="120"/>
                             <GridViewColumn Header="Date" DisplayMemberBinding="{Binding Timestamp, StringFormat='g'}" Width="150"/>
@@ -77,18 +50,70 @@
             </GroupBox>
 
             <!-- ======================================================= -->
-            <!-- ==                IMAGE PREVIEW COLUMN               == -->
+            <!-- ==         MODIFIED IMAGE PREVIEW COLUMN             == -->
             <!-- ======================================================= -->
             <GroupBox Grid.Column="2" Header="Image Preview" Margin="20,0,0,0">
-                <!-- 
-                This Image control's Source is bound to the first image in the selected project's list of paths.
-                WPF automatically handles converting the file path string into a displayable image.
-                If no project is selected or the selected project has no images, nothing will be displayed.
-                The [0] indexer gets the first element of the ImagePaths list.
-                -->
-                <Image Source="{Binding SelectedProject.ImagePaths[0]}"
-                       Stretch="Uniform"
-                       Margin="5"/>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- The Image control now has a Style applied to it. -->
+                    <Image Grid.Row="0" Source="{Binding PreviewImagePath}" Stretch="Uniform" Margin="5">
+                        <Image.Style>
+                            <!-- This Style targets the Image type. -->
+                            <Style TargetType="{x:Type Image}">
+                                <!-- The default state is to be visible. -->
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <!-- This is the rule (Trigger). -->
+                                    <DataTrigger Binding="{Binding PreviewImagePath}" Value="">
+                                        <!-- When the binding value is an empty string (""), apply this Setter. -->
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding PreviewImagePath}" Value="{x:Null}">
+                                        <!-- Also handle the case where the value is null, just to be safe. -->
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Image.Style>
+                    </Image>
+
+                    <!-- The carousel controls are unchanged but now have a Style to control their visibility too. -->
+                    <Grid Grid.Row="1" Margin="5">
+                        <Grid.Style>
+                            <!-- This Style hides the entire control bar if no image is present. -->
+                            <Style TargetType="{x:Type Grid}">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding PreviewImagePath}" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding PreviewImagePath}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button Grid.Column="0" Content="Prev" HorizontalAlignment="Left"
+                                Command="{Binding PreviousImageCommand}"/>
+
+                        <TextBlock Grid.Column="1" Text="{Binding ImageCounterText}" 
+                                   VerticalAlignment="Center" HorizontalAlignment="Center"
+                                   Margin="10,0" FontWeight="SemiBold"/>
+
+                        <Button Grid.Column="2" Content="Next" HorizontalAlignment="Right"
+                                Command="{Binding NextImageCommand}"/>
+                    </Grid>
+                </Grid>
             </GroupBox>
         </Grid>
     </Grid>

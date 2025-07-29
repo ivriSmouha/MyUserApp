@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 // ViewModels/BaseViewModel.cs
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using MyUserApp.Models;
+using MyUserApp.Services;
 
 namespace MyUserApp.ViewModels
 {
@@ -21,6 +23,10 @@ namespace MyUserApp.ViewModels
         protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+        private UserModel AuthenticateUser(string username, string password)
+        {
+            return UserService.Instance.Users.FirstOrDefault(u => u.Username == username && u.Password == password);
         }
     }
 }
