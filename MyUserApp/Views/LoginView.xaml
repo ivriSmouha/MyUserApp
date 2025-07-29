@@ -1,0 +1,27 @@
+﻿<!-- Views/LoginView.xaml -->
+<UserControl x:Class="MyUserApp.Views.LoginView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="300" Height="200">
+    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+        <TextBlock Text="Login" FontSize="24" FontWeight="Bold" Margin="0,0,0,20" HorizontalAlignment="Center"/>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="150"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="Username:" Margin="5" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="1" Margin="5" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"/>
+
+            <TextBlock Grid.Row="1" Text="Password:" Margin="5" VerticalAlignment="Center"/>
+            <PasswordBox Grid.Row="1" Grid.Column="1" Margin="5" Name="PasswordBox"
+                         PasswordChanged="PasswordBox_PasswordChanged"/>
+        </Grid>
+        <Button Content="Login" Margin="10" Command="{Binding LoginCommand}" IsDefault="True"/>
+    </StackPanel>
+</UserControl>

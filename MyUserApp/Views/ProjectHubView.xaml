@@ -1,0 +1,52 @@
+﻿<!-- Views/ProjectHubView.xaml -->
+<UserControl x:Class="MyUserApp.Views.ProjectHubView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="{Binding WelcomeMessage}" FontSize="24" FontWeight="Bold"/>
+                <Button Content="Logout" Command="{Binding LogoutCommand}" Margin="50,0,0,0" Width="80"/>
+            </StackPanel>
+            <TextBlock Text="You can start a new project or view one of your recent projects below." Margin="0,5,0,0" Foreground="Gray"/>
+        </StackPanel>
+
+        <!-- Main Content Area -->
+        <Grid Grid.Row="1" Margin="0,20,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="250"/>
+                <!-- Actions Column -->
+                <ColumnDefinition Width="*"/>
+                <!-- Recent Projects Column -->
+            </Grid.ColumnDefinitions>
+
+            <!-- Left Column for Actions -->
+            <StackPanel Grid.Column="0" Margin="0,0,20,0">
+                <Button Content="Start New Project" 
+                        Command="{Binding StartNewProjectCommand}" 
+                        Padding="10" FontSize="16" FontWeight="Bold"/>
+                <!-- We can add more buttons here later, like "Open Selected Project" -->
+            </StackPanel>
+
+            <!-- Right Column for the list -->
+            <GroupBox Grid.Column="1" Header="Recent Projects">
+                <ListView ItemsSource="{Binding RecentProjects}">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="Aircraft Type" DisplayMemberBinding="{Binding AircraftType}" Width="120"/>
+                            <GridViewColumn Header="Tail #" DisplayMemberBinding="{Binding TailNumber}" Width="80"/>
+                            <GridViewColumn Header="Inspector" DisplayMemberBinding="{Binding InspectorName}" Width="120"/>
+                            <GridViewColumn Header="Date" DisplayMemberBinding="{Binding Timestamp, StringFormat='g'}" Width="150"/>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </GroupBox>
+        </Grid>
+    </Grid>
+</UserControl>

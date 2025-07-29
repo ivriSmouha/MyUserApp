@@ -1,0 +1,147 @@
+﻿<UserControl x:Class="MyUserApp.Views.AdminPanelView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="500" d:DesignWidth="800">
+
+    <!-- The main layout is a Grid with a header row and a content row. -->
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!-- Row for the main header and logout button. -->
+            <RowDefinition Height="*"/>
+            <!-- Row for the main content (the TabControl). -->
+        </Grid.RowDefinitions>
+
+        <!-- ======================================================= -->
+        <!-- ==                  MAIN HEADER                      == -->
+        <!-- ======================================================= -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal">
+            <TextBlock Text="Administrator Panel" FontSize="24" FontWeight="Bold"/>
+            <Button Content="Logout" 
+                    Command="{Binding LogoutCommand}" 
+                    Margin="50,0,0,0" 
+                    Width="80" 
+                    VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <!-- ======================================================= -->
+        <!-- ==                 MAIN TAB CONTROL                  == -->
+        <!-- ======================================================= -->
+        <!-- This TabControl separates the different admin responsibilities into clean sections. -->
+        <TabControl Grid.Row="1" Margin="0,15,0,0">
+
+            <!-- ======================================================= -->
+            <!-- ==             TAB 1: USER MANAGEMENT                == -->
+            <!-- ======================================================= -->
+            <TabItem Header="User Management">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <!-- Takes most of the space for the user list. -->
+                        <RowDefinition Height="Auto"/>
+                        <!-- Fits the content of the 'Add User' form. -->
+                    </Grid.RowDefinitions>
+
+                    <!-- List of existing users -->
+                    <ListView Grid.Row="0" ItemsSource="{Binding Users}" Margin="5">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Username" DisplayMemberBinding="{Binding Username}" Width="250"/>
+                                <GridViewColumn Header="Is Admin" DisplayMemberBinding="{Binding IsAdmin}" Width="100"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+
+                    <!-- Form to add a new user -->
+                    <GroupBox Grid.Row="1" Header="Add New User" FontWeight="Bold" Margin="5">
+                        <Grid Margin="5">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Text="Username:" Margin="5" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Margin="5" Text="{Binding NewUsername, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <TextBlock Grid.Column="2" Text="Password:" Margin="5" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="3" Margin="5" Text="{Binding NewPassword, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <CheckBox Grid.Column="4" Content="Is Admin?" VerticalAlignment="Center" Margin="10,0"
+                                      IsChecked="{Binding NewUserIsAdmin}"/>
+
+                            <Button Grid.Column="5" Content="Add User" Margin="5" Command="{Binding AddUserCommand}"/>
+                        </Grid>
+                    </GroupBox>
+                </Grid>
+            </TabItem>
+
+            <!-- ======================================================= -->
+            <!-- ==             TAB 2: OPTIONS MANAGEMENT             == -->
+            <!-- ======================================================= -->
+            <TabItem Header="Options Management">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Column for managing Aircraft Types -->
+                    <GroupBox Grid.Column="0" Header="Aircraft Types" Margin="5">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- List of current aircraft types with a delete button for each. -->
+                            <ListView Grid.Row="0" ItemsSource="{Binding AppOptions.AircraftTypes}">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Width="200">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <!-- The TextBlock binds to the string item itself. -->
+                                            <TextBlock Text="{Binding .}" VerticalAlignment="Center"/>
+                                            <!-- The Delete button. Its command must find the ViewModel using RelativeSource. -->
+                                            <Button Grid.Column="1" Content="Delete" FontSize="10"
+                                                    Command="{Binding DataContext.DeleteAircraftTypeCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                                    CommandParameter="{Binding .}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+
+                            <!-- Form to add a new aircraft type -->
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
+                                <TextBox Text="{Binding NewAircraftType, UpdateSourceTrigger=PropertyChanged}" Width="150" Margin="5"/>
+                                <Button Content="Add" Command="{Binding AddAircraftTypeCommand}" Margin="5"/>
+                            </StackPanel>
+                        </Grid>
+                    </GroupBox>
+
+                    <!-- NOTE: You would repeat the GroupBox structure for AircraftSides and Reasons in columns 1 and 2 -->
+                    <!-- Example placeholder for Aircraft Sides -->
+                    <GroupBox Grid.Column="1" Header="Aircraft Sides" Margin="5">
+                        <!-- UI for managing Aircraft Sides would go here, following the same pattern. -->
+                    </GroupBox>
+
+                    <!-- Example placeholder for Reasons -->
+                    <GroupBox Grid.Column="2" Header="Reasons" Margin="5">
+                        <!-- UI for managing Reasons would go here, following the same pattern. -->
+                    </GroupBox>
+
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</UserControl>
