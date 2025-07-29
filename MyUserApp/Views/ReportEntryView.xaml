@@ -18,11 +18,10 @@
         </Grid.RowDefinitions>
 
         <!-- ======================================================= -->
-        <!-- ==                  HEADER                           == -->
+        <!--                         HEADER                          -->
         <!-- ======================================================= -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
             <TextBlock Text="New Inspection Report" FontSize="24" FontWeight="Bold"/>
-            <!-- The Logout button is now fully functional -->
             <Button Content="Logout" 
                     Command="{Binding LogoutCommand}" 
                     Margin="50,0,0,0" 
@@ -31,9 +30,8 @@
         </StackPanel>
 
         <!-- ======================================================= -->
-        <!-- ==                  MAIN FORM AREA                   == -->
+        <!--                    MAIN FORM AREA                       -->
         <!-- ======================================================= -->
-        <!-- A ScrollViewer ensures the form is usable even on smaller screens -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -54,47 +52,56 @@
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
+                            <!-- 1. Aircraft Type -->
                             <RowDefinition Height="Auto"/>
+                            <!-- 2. Tail Number -->
                             <RowDefinition Height="Auto"/>
+                            <!-- 3. Aircraft Side -->
                             <RowDefinition Height="Auto"/>
+                            <!-- 4. Reason -->
                             <RowDefinition Height="Auto"/>
+                            <!-- 5. Inspector -->
                             <RowDefinition Height="Auto"/>
+                            <!-- 6. Verifier -->
                         </Grid.RowDefinitions>
 
-                        <!-- Aircraft Type (Dropdown from Admin settings) -->
+                        <!-- UPDATED ORDER AND CONTROL TYPES -->
+
+                        <!-- 1. Aircraft Type -->
                         <TextBlock Grid.Row="0" Text="Aircraft Type:" VerticalAlignment="Center" Margin="5"/>
                         <ComboBox Grid.Row="0" Grid.Column="1" Margin="5"
                                   ItemsSource="{Binding AircraftTypes}"
                                   SelectedItem="{Binding SelectedAircraftType}"
                                   IsEditable="False"/>
 
-                        <!-- Tail Number (Free text) -->
+                        <!-- 2. Tail Number (Now a ComboBox) -->
                         <TextBlock Grid.Row="1" Text="Tail Number:" VerticalAlignment="Center" Margin="5"/>
-                        <TextBox Grid.Row="1" Grid.Column="1" Margin="5" Text="{Binding TailNumber}"/>
+                        <ComboBox Grid.Row="1" Grid.Column="1" Margin="5"
+                                  ItemsSource="{Binding TailNumbers}"
+                                  SelectedItem="{Binding SelectedTailNumber}"
+                                  IsEditable="False"/>
 
-                        <!-- Aircraft Side (Dropdown from Admin settings) -->
+                        <!-- 3. Aircraft Side -->
                         <TextBlock Grid.Row="2" Text="Aircraft Side:" VerticalAlignment="Center" Margin="5"/>
                         <ComboBox Grid.Row="2" Grid.Column="1" Margin="5"
                                   ItemsSource="{Binding AircraftSides}"
                                   SelectedItem="{Binding SelectedAircraftSide}"
                                   IsEditable="False"/>
 
-                        <!-- Reason (Dropdown from Admin settings) -->
+                        <!-- 4. Reason -->
                         <TextBlock Grid.Row="3" Text="Reason for Inspection:" VerticalAlignment="Center" Margin="5"/>
                         <ComboBox Grid.Row="3" Grid.Column="1" Margin="5"
                                   ItemsSource="{Binding Reasons}"
                                   SelectedItem="{Binding SelectedReason}"
                                   IsEditable="False"/>
 
-                        <!-- Inspector Name (Dropdown from User list, disabled) -->
+                        <!-- 5. Inspector Name (Now ENABLED for selection) -->
                         <TextBlock Grid.Row="4" Text="Inspector Name:" VerticalAlignment="Center" Margin="5"/>
                         <ComboBox Grid.Row="4" Grid.Column="1" Margin="5"
                                   ItemsSource="{Binding Usernames}"
-                                  SelectedItem="{Binding SelectedInspector}"
-                                  IsEnabled="False"
-                                  ToolTip="Inspector is automatically set to the logged-in user."/>
+                                  SelectedItem="{Binding SelectedInspector}"/>
 
-                        <!-- Verifier Name (Dropdown from User list) -->
+                        <!-- 6. Verifier Name -->
                         <TextBlock Grid.Row="5" Text="Verifier Name:" VerticalAlignment="Center" Margin="5"/>
                         <ComboBox Grid.Row="5" Grid.Column="1" Margin="5"
                                   ItemsSource="{Binding Usernames}"
@@ -109,7 +116,6 @@
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-                        <!-- This ListView shows the full path of each selected image -->
                         <ListView ItemsSource="{Binding SelectedImagePaths}" Margin="5"/>
                         <Button Grid.Row="1" Content="Select Images..." Margin="5"
                                 Command="{Binding SelectImagesCommand}"/>
@@ -119,9 +125,8 @@
         </ScrollViewer>
 
         <!-- ======================================================= -->
-        <!-- ==                  ACTION BUTTONS                   == -->
+        <!--                   ACTION BUTTONS                        -->
         <!-- ======================================================= -->
-        <!-- A bar at the bottom for the main form actions -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20,0,0">
             <Button Content="Submit Report" 
                     Padding="20,10" FontSize="16" FontWeight="Bold" 

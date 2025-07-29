@@ -8,4 +8,12 @@
     <UseWPF>true</UseWPF>
   </PropertyGroup>
 
+  <ItemGroup>
+    <None Remove="Assets\placeholder.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\placeholder.png" />
+  </ItemGroup>
+
 </Project>

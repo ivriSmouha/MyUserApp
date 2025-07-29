@@ -12,7 +12,7 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Header (no changes) -->
+        <!-- Header -->
         <StackPanel Grid.Row="0">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="{Binding WelcomeMessage}" FontSize="24" FontWeight="Bold"/>
@@ -21,7 +21,7 @@
             <TextBlock Text="You can start a new project or view one of your recent projects below." Margin="0,5,0,0" Foreground="Gray"/>
         </StackPanel>
 
-        <!-- Main Content Area (no changes) -->
+        <!-- Main Content Area -->
         <Grid Grid.Row="1" Margin="0,20,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="220"/>
@@ -29,6 +29,7 @@
                 <ColumnDefinition Width="300"/>
             </Grid.ColumnDefinitions>
 
+            <!-- Actions Column -->
             <StackPanel Grid.Column="0" Margin="0,0,20,0">
                 <Button Content="Start New Project" 
                         Command="{Binding StartNewProjectCommand}" 
@@ -36,7 +37,9 @@
                         ToolTip="Begin a new inspection report."/>
             </StackPanel>
 
+            <!-- Recent Projects Column -->
             <GroupBox Grid.Column="1" Header="Recent Projects">
+                <!-- THIS IS THE CORRECTED LISTVIEW -->
                 <ListView ItemsSource="{Binding RecentProjects}"
                           SelectedItem="{Binding SelectedProject}">
                     <ListView.View>
@@ -49,9 +52,7 @@
                 </ListView>
             </GroupBox>
 
-            <!-- ======================================================= -->
-            <!-- ==         MODIFIED IMAGE PREVIEW COLUMN             == -->
-            <!-- ======================================================= -->
+            <!-- Image Preview Column -->
             <GroupBox Grid.Column="2" Header="Image Preview" Margin="20,0,0,0">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -59,39 +60,14 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <!-- The Image control now has a Style applied to it. -->
-                    <Image Grid.Row="0" Source="{Binding PreviewImagePath}" Stretch="Uniform" Margin="5">
-                        <Image.Style>
-                            <!-- This Style targets the Image type. -->
-                            <Style TargetType="{x:Type Image}">
-                                <!-- The default state is to be visible. -->
-                                <Setter Property="Visibility" Value="Visible"/>
-                                <Style.Triggers>
-                                    <!-- This is the rule (Trigger). -->
-                                    <DataTrigger Binding="{Binding PreviewImagePath}" Value="">
-                                        <!-- When the binding value is an empty string (""), apply this Setter. -->
-                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding PreviewImagePath}" Value="{x:Null}">
-                                        <!-- Also handle the case where the value is null, just to be safe. -->
-                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Image.Style>
-                    </Image>
+                    <Image Grid.Row="0" Source="{Binding PreviewImagePath}" Stretch="Uniform" Margin="5"/>
 
-                    <!-- The carousel controls are unchanged but now have a Style to control their visibility too. -->
                     <Grid Grid.Row="1" Margin="5">
                         <Grid.Style>
-                            <!-- This Style hides the entire control bar if no image is present. -->
                             <Style TargetType="{x:Type Grid}">
                                 <Setter Property="Visibility" Value="Visible"/>
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding PreviewImagePath}" Value="">
-                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding PreviewImagePath}" Value="{x:Null}">
+                                    <DataTrigger Binding="{Binding SelectedProject.ImagePaths.Count}" Value="0">
                                         <Setter Property="Visibility" Value="Collapsed"/>
                                     </DataTrigger>
                                 </Style.Triggers>
@@ -103,15 +79,9 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <Button Grid.Column="0" Content="Prev" HorizontalAlignment="Left"
-                                Command="{Binding PreviousImageCommand}"/>
-
-                        <TextBlock Grid.Column="1" Text="{Binding ImageCounterText}" 
-                                   VerticalAlignment="Center" HorizontalAlignment="Center"
-                                   Margin="10,0" FontWeight="SemiBold"/>
-
-                        <Button Grid.Column="2" Content="Next" HorizontalAlignment="Right"
-                                Command="{Binding NextImageCommand}"/>
+                        <Button Grid.Column="0" Content="Prev" HorizontalAlignment="Left" Command="{Binding PreviousImageCommand}"/>
+                        <TextBlock Grid.Column="1" Text="{Binding ImageCounterText}" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="10,0" FontWeight="SemiBold"/>
+                        <Button Grid.Column="2" Content="Next" HorizontalAlignment="Right" Command="{Binding NextImageCommand}"/>
                     </Grid>
                 </Grid>
             </GroupBox>

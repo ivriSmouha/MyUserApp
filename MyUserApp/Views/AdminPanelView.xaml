@@ -4,48 +4,28 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
-             d:DesignHeight="500" d:DesignWidth="800">
-
-    <!-- The main layout is a Grid with a header row and a content row. -->
+             d:DesignHeight="600" d:DesignWidth="900">
     <Grid Margin="15">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <!-- Row for the main header and logout button. -->
             <RowDefinition Height="*"/>
-            <!-- Row for the main content (the TabControl). -->
         </Grid.RowDefinitions>
 
-        <!-- ======================================================= -->
-        <!--                  MAIN HEADER                            -->
-        <!-- ======================================================= -->
+        <!-- Header -->
         <StackPanel Grid.Row="0" Orientation="Horizontal">
             <TextBlock Text="Administrator Panel" FontSize="24" FontWeight="Bold"/>
-            <Button Content="Logout" 
-                    Command="{Binding LogoutCommand}" 
-                    Margin="50,0,0,0" 
-                    Width="80" 
-                    VerticalAlignment="Center"/>
+            <Button Content="Logout" Command="{Binding LogoutCommand}" Margin="50,0,0,0" Width="80" VerticalAlignment="Center"/>
         </StackPanel>
 
-        <!-- ======================================================= -->
-        <!--                 MAIN TAB CONTROL                        -->
-        <!-- ======================================================= -->
-        <!-- This TabControl separates the different admin responsibilities into clean sections. -->
+        <!-- Tab Control -->
         <TabControl Grid.Row="1" Margin="0,15,0,0">
-
-            <!-- ======================================================= -->
-            <!--             TAB 1: USER MANAGEMENT                      -->
-            <!-- ======================================================= -->
+            <!-- Tab 1: User Management -->
             <TabItem Header="User Management">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
-                        <!-- Takes most of the space for the user list. -->
                         <RowDefinition Height="Auto"/>
-                        <!-- Fits the content of the 'Add User' form. -->
                     </Grid.RowDefinitions>
-
-                    <!-- List of existing users -->
                     <ListView Grid.Row="0" ItemsSource="{Binding Users}" Margin="5">
                         <ListView.View>
                             <GridView>
@@ -54,8 +34,6 @@
                             </GridView>
                         </ListView.View>
                     </ListView>
-
-                    <!-- Form to add a new user -->
                     <GroupBox Grid.Row="1" Header="Add New User" FontWeight="Bold" Margin="5">
                         <Grid Margin="5">
                             <Grid.ColumnDefinitions>
@@ -77,19 +55,19 @@
                 </Grid>
             </TabItem>
 
-            <!-- ======================================================= -->
-            <!--             TAB 2: OPTIONS MANAGEMENT                   -->
-            <!-- ======================================================= -->
+            <!-- Tab 2: Options Management -->
             <TabItem Header="Options Management">
                 <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Column for managing Aircraft Types -->
-                    <GroupBox Grid.Column="0" Header="Aircraft Types" Margin="5">
+                    <GroupBox Grid.Row="0" Grid.Column="0" Header="Aircraft Types" Margin="5">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="*"/>
@@ -98,7 +76,7 @@
                             <ListView Grid.Row="0" ItemsSource="{Binding AppOptions.AircraftTypes}">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid Width="200">
+                                        <Grid Width="Auto">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
@@ -116,8 +94,34 @@
                         </Grid>
                     </GroupBox>
 
-                    <!-- Column for managing Aircraft Sides -->
-                    <GroupBox Grid.Column="1" Header="Aircraft Sides" Margin="5">
+                    <GroupBox Grid.Row="0" Grid.Column="1" Header="Tail Numbers" Margin="5">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <ListView Grid.Row="0" ItemsSource="{Binding AppOptions.TailNumbers}">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Width="Auto">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding .}" VerticalAlignment="Center"/>
+                                            <Button Grid.Column="1" Content="Delete" FontSize="10" Command="{Binding DataContext.DeleteTailNumberCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding .}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
+                                <TextBox Text="{Binding NewTailNumber, UpdateSourceTrigger=PropertyChanged}" Width="150" Margin="5"/>
+                                <Button Content="Add" Command="{Binding AddTailNumberCommand}" Margin="5"/>
+                            </StackPanel>
+                        </Grid>
+                    </GroupBox>
+
+                    <GroupBox Grid.Row="1" Grid.Column="0" Header="Aircraft Sides" Margin="5">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="*"/>
@@ -126,7 +130,7 @@
                             <ListView Grid.Row="0" ItemsSource="{Binding AppOptions.AircraftSides}">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid Width="200">
+                                        <Grid Width="Auto">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
@@ -144,8 +148,7 @@
                         </Grid>
                     </GroupBox>
 
-                    <!-- Column for managing Reasons -->
-                    <GroupBox Grid.Column="2" Header="Reasons" Margin="5">
+                    <GroupBox Grid.Row="1" Grid.Column="1" Header="Reasons" Margin="5">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="*"/>
@@ -154,7 +157,7 @@
                             <ListView Grid.Row="0" ItemsSource="{Binding AppOptions.Reasons}">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid Width="200">
+                                        <Grid Width="Auto">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
