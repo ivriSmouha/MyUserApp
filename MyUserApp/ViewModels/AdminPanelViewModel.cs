@@ -86,4 +86,5 @@ namespace MyUserApp.ViewModels
 
         // ... (SelectImages method is the same) ...
     }
+
 }
