@@ -10,6 +10,5 @@ namespace MyUserApp.Models
         public ObservableCollection<string> TailNumbers { get; set; } = new ObservableCollection<string>();
         public ObservableCollection<string> AircraftSides { get; set; } = new ObservableCollection<string>();
         public ObservableCollection<string> Reasons { get; set; } = new ObservableCollection<string>();
-        public ObservableCollection<string> TailNumbers { get; set; } = new ObservableCollection<string>();
     }
 }

@@ -1,37 +1,45 @@
-﻿// ViewModels/ReportEntryViewModel.cs
-using MyUserApp.Models;
+﻿using MyUserApp.Models;
 using MyUserApp.Services;
-using Microsoft.Win32;
 using System;
 using System.Collections.ObjectModel;
-using System.IO;
-using System.Linq;
-using System.Windows;
 using System.Windows.Input;
 
 namespace MyUserApp.ViewModels
 {
-    public class ReportEntryViewModel : BaseViewModel
+    /// <summary>
+    /// ViewModel for the Admin Panel. Manages users and application-wide options 
+    /// such as aircraft types, tail numbers, sides, and reasons.
+    /// </summary>
+    public class AdminPanelViewModel : BaseViewModel
     {
-        // --- Dropdown options ---
-        public ObservableCollection<string> AircraftTypes { get; }
-        public ObservableCollection<string> AircraftSides { get; }
-        public ObservableCollection<string> Reasons { get; }
-        public ObservableCollection<string> Usernames { get; }
-        // --- NEW: A collection for the tail number dropdown ---
-        public ObservableCollection<string> TailNumbers { get; }
+        // --- User Management Properties ---
+        public ObservableCollection<UserModel> Users => UserService.Instance.Users;
 
-        // --- Options management properties ---
+        private string _newUsername;
+        public string NewUsername { get => _newUsername; set { _newUsername = value; OnPropertyChanged(); ((RelayCommand)AddUserCommand).RaiseCanExecuteChanged(); } }
+
+        private string _newPassword;
+        public string NewPassword { get => _newPassword; set { _newPassword = value; OnPropertyChanged(); ((RelayCommand)AddUserCommand).RaiseCanExecuteChanged(); } }
+
+        private bool _newUserIsAdmin;
+        public bool NewUserIsAdmin { get => _newUserIsAdmin; set { _newUserIsAdmin = value; OnPropertyChanged(); } }
+
+        // --- Options Management Properties ---
         public AppOptionsModel AppOptions => OptionsService.Instance.Options;
 
         private string _newAircraftType;
-        public string NewAircraftType { get => _newAircraftType; set { _newAircraftType = value; OnPropertyChanged(); } }
+        public string NewAircraftType { get => _newAircraftType; set { _newAircraftType = value; OnPropertyChanged(); ((RelayCommand)AddAircraftTypeCommand).RaiseCanExecuteChanged(); } }
 
         private string _newAircraftSide;
-        public string NewAircraftSide { get => _newAircraftSide; set { _newAircraftSide = value; OnPropertyChanged(); } }
+        public string NewAircraftSide { get => _newAircraftSide; set { _newAircraftSide = value; OnPropertyChanged(); ((RelayCommand)AddAircraftSideCommand).RaiseCanExecuteChanged(); } }
 
         private string _newReason;
-        public string NewReason { get => _newReason; set { _newReason = value; OnPropertyChanged(); } }
+        public string NewReason { get => _newReason; set { _newReason = value; OnPropertyChanged(); ((RelayCommand)AddReasonCommand).RaiseCanExecuteChanged(); } }
+
+        // --- ADDED: Property for Tail Number input to fix binding error ---
+        private string _newTailNumber;
+        public string NewTailNumber { get => _newTailNumber; set { _newTailNumber = value; OnPropertyChanged(); ((RelayCommand)AddTailNumberCommand).RaiseCanExecuteChanged(); } }
+
 
         // --- Commands ---
         public ICommand AddUserCommand { get; }
@@ -43,63 +51,117 @@ namespace MyUserApp.ViewModels
         public ICommand AddReasonCommand { get; }
         public ICommand DeleteReasonCommand { get; }
 
-        private string _selectedAircraftSide;
-        public string SelectedAircraftSide { get => _selectedAircraftSide; set { _selectedAircraftSide = value; OnPropertyChanged(); } }
-        private string _selectedReason;
-        public string SelectedReason { get => _selectedReason; set { _selectedReason = value; OnPropertyChanged(); } }
-        private string _selectedInspector;
-        public string SelectedInspector { get => _selectedInspector; set { _selectedInspector = value; OnPropertyChanged(); } }
-        private string _selectedVerifier;
-        public string SelectedVerifier { get => _selectedVerifier; set { _selectedVerifier = value; OnPropertyChanged(); } }
+        // --- ADDED: Commands for Tail Number buttons to fix binding errors ---
+        public ICommand AddTailNumberCommand { get; }
+        public ICommand DeleteTailNumberCommand { get; }
 
-        // ... (Image selection, commands, and events are the same)
-        // ...
 
-        public ReportEntryViewModel(UserModel user)
+        // --- Events ---
+        public event Action OnLogoutRequested;
+
+
+        public AdminPanelViewModel()
         {
-            var options = OptionsService.Instance.Options;
-            AircraftTypes = new ObservableCollection<string>(options.AircraftTypes);
-            AircraftSides = new ObservableCollection<string>(options.AircraftSides);
-            Reasons = new ObservableCollection<string>(options.Reasons);
-            // --- NEW: Load tail numbers from the service ---
-            TailNumbers = new ObservableCollection<string>(options.TailNumbers);
+            // Initialize User commands
+            AddUserCommand = new RelayCommand(AddNewUser, _ => CanAddNewUser());
+            LogoutCommand = new RelayCommand(param => OnLogoutRequested?.Invoke());
 
-            var allUsernames = UserService.Instance.Users.Select(u => u.Username);
-            Usernames = new ObservableCollection<string>(allUsernames);
-            SelectedInspector = user.Username;
-
-            // Options commands
+            // Initialize Options commands
             AddAircraftTypeCommand = new RelayCommand(AddAircraftType, _ => !string.IsNullOrEmpty(NewAircraftType));
             DeleteAircraftTypeCommand = new RelayCommand(DeleteAircraftType);
+
             AddAircraftSideCommand = new RelayCommand(AddAircraftSide, _ => !string.IsNullOrEmpty(NewAircraftSide));
             DeleteAircraftSideCommand = new RelayCommand(DeleteAircraftSide);
+
             AddReasonCommand = new RelayCommand(AddReason, _ => !string.IsNullOrEmpty(NewReason));
             DeleteReasonCommand = new RelayCommand(DeleteReason);
+
+            // --- ADDED: Initialize the new Tail Number commands ---
+            AddTailNumberCommand = new RelayCommand(AddTailNumber, _ => !string.IsNullOrEmpty(NewTailNumber));
+            DeleteTailNumberCommand = new RelayCommand(DeleteTailNumber);
         }
 
-        private void SubmitReport(object obj)
+        #region User Management Methods
+        private bool CanAddNewUser() => !string.IsNullOrEmpty(NewUsername) && !string.IsNullOrEmpty(NewPassword);
+
+        private void AddNewUser(object obj)
         {
-            // --- MODIFIED: Use the selected values to build the project name ---
-            string projectName = $"{this.SelectedAircraftType} - {this.SelectedTailNumber} ({this.SelectedAircraftSide})";
+            var newUser = new UserModel { Username = this.NewUsername, Password = this.NewPassword, IsAdmin = this.NewUserIsAdmin };
+            UserService.Instance.AddUser(newUser);
 
-            // ... (Image copying logic is the same) ...
-
-            var newReport = new InspectionReportModel
-            {
-                ProjectName = projectName,
-                AircraftType = this.SelectedAircraftType,
-                // --- MODIFIED: Use the selected value ---
-                TailNumber = this.SelectedTailNumber,
-                AircraftSide = this.SelectedAircraftSide,
-                Reason = this.SelectedReason,
-                InspectorName = this.SelectedInspector,
-                VerifierName = this.SelectedVerifier,
-                ImagePaths = newImagePaths
-            };
-            ReportService.Instance.AddReport(newReport);
-            MessageBox.Show("Report submitted successfully!", "Success");
-            OnFinished?.Invoke();
+            // Reset fields
+            NewUsername = "";
+            NewPassword = "";
+            NewUserIsAdmin = false;
         }
-    }
+        #endregion
 
+        #region Options Management Methods
+
+        // Aircraft Types
+        private void AddAircraftType(object obj)
+        {
+            OptionsService.Instance.AddAircraftType(NewAircraftType);
+            NewAircraftType = "";
+            OnPropertyChanged(nameof(AppOptions));
+        }
+        private void DeleteAircraftType(object obj)
+        {
+            if (obj is string s)
+            {
+                OptionsService.Instance.DeleteAircraftType(s);
+                OnPropertyChanged(nameof(AppOptions));
+            }
+        }
+
+        // Aircraft Sides
+        private void AddAircraftSide(object obj)
+        {
+            OptionsService.Instance.AddAircraftSide(NewAircraftSide);
+            NewAircraftSide = "";
+            OnPropertyChanged(nameof(AppOptions));
+        }
+        private void DeleteAircraftSide(object obj)
+        {
+            if (obj is string s)
+            {
+                OptionsService.Instance.DeleteAircraftSide(s);
+                OnPropertyChanged(nameof(AppOptions));
+            }
+        }
+
+        // Reasons
+        private void AddReason(object obj)
+        {
+            OptionsService.Instance.AddReason(NewReason);
+            NewReason = "";
+            OnPropertyChanged(nameof(AppOptions));
+        }
+        private void DeleteReason(object obj)
+        {
+            if (obj is string s)
+            {
+                OptionsService.Instance.DeleteReason(s);
+                OnPropertyChanged(nameof(AppOptions));
+            }
+        }
+
+        // --- ADDED: Methods for adding and deleting Tail Numbers ---
+        private void AddTailNumber(object obj)
+        {
+            OptionsService.Instance.AddTailNumber(NewTailNumber);
+            NewTailNumber = "";
+            OnPropertyChanged(nameof(AppOptions));
+        }
+
+        private void DeleteTailNumber(object obj)
+        {
+            if (obj is string tailNumberToDelete)
+            {
+                OptionsService.Instance.DeleteTailNumber(tailNumberToDelete);
+                OnPropertyChanged(nameof(AppOptions));
+            }
+        }
+        #endregion
+    }
 }
