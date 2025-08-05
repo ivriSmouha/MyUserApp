@@ -21,13 +21,27 @@ namespace MyUserApp.ViewModels
         // --- NEW: A collection for the tail number dropdown ---
         public ObservableCollection<string> TailNumbers { get; }
 
-        // --- Form Data Properties ---
-        private string _selectedAircraftType;
-        public string SelectedAircraftType { get => _selectedAircraftType; set { _selectedAircraftType = value; OnPropertyChanged(); } }
+        // --- Options management properties ---
+        public AppOptionsModel AppOptions => OptionsService.Instance.Options;
 
-        // --- RENAMED: Changed from TailNumber to SelectedTailNumber ---
-        private string _selectedTailNumber;
-        public string SelectedTailNumber { get => _selectedTailNumber; set { _selectedTailNumber = value; OnPropertyChanged(); } }
+        private string _newAircraftType;
+        public string NewAircraftType { get => _newAircraftType; set { _newAircraftType = value; OnPropertyChanged(); } }
+
+        private string _newAircraftSide;
+        public string NewAircraftSide { get => _newAircraftSide; set { _newAircraftSide = value; OnPropertyChanged(); } }
+
+        private string _newReason;
+        public string NewReason { get => _newReason; set { _newReason = value; OnPropertyChanged(); } }
+
+        // --- Commands ---
+        public ICommand AddUserCommand { get; }
+        public ICommand LogoutCommand { get; }
+        public ICommand AddAircraftTypeCommand { get; }
+        public ICommand DeleteAircraftTypeCommand { get; }
+        public ICommand AddAircraftSideCommand { get; }
+        public ICommand DeleteAircraftSideCommand { get; }
+        public ICommand AddReasonCommand { get; }
+        public ICommand DeleteReasonCommand { get; }
 
         private string _selectedAircraftSide;
         public string SelectedAircraftSide { get => _selectedAircraftSide; set { _selectedAircraftSide = value; OnPropertyChanged(); } }
@@ -54,7 +68,13 @@ namespace MyUserApp.ViewModels
             Usernames = new ObservableCollection<string>(allUsernames);
             SelectedInspector = user.Username;
 
-            // ... (Initialize commands and image paths as before)
+            // Options commands
+            AddAircraftTypeCommand = new RelayCommand(AddAircraftType, _ => !string.IsNullOrEmpty(NewAircraftType));
+            DeleteAircraftTypeCommand = new RelayCommand(DeleteAircraftType);
+            AddAircraftSideCommand = new RelayCommand(AddAircraftSide, _ => !string.IsNullOrEmpty(NewAircraftSide));
+            DeleteAircraftSideCommand = new RelayCommand(DeleteAircraftSide);
+            AddReasonCommand = new RelayCommand(AddReason, _ => !string.IsNullOrEmpty(NewReason));
+            DeleteReasonCommand = new RelayCommand(DeleteReason);
         }
 
         private void SubmitReport(object obj)
@@ -80,11 +100,6 @@ namespace MyUserApp.ViewModels
             MessageBox.Show("Report submitted successfully!", "Success");
             OnFinished?.Invoke();
         }
-
-        // --- MODIFIED: Update validation to check the selected tail number ---
-        private bool CanSubmitReport() => !string.IsNullOrEmpty(SelectedAircraftType) && !string.IsNullOrEmpty(SelectedTailNumber) && !string.IsNullOrEmpty(SelectedInspector);
-
-        // ... (SelectImages method is the same) ...
     }
 
 }

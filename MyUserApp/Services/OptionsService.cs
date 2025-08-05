@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Text.Json;
+using System.Collections.ObjectModel;
 
 namespace MyUserApp.Services
 {
@@ -25,10 +26,10 @@ namespace MyUserApp.Services
                 Options = new AppOptionsModel
                 {
                     AircraftTypes = new ObservableCollection<string>(loadedOptions.AircraftTypes),
+                    TailNumbers = new ObservableCollection<string>(loadedOptions.TailNumbers),
                     AircraftSides = new ObservableCollection<string>(loadedOptions.AircraftSides),
-                    Reasons = new ObservableCollection<string>(loadedOptions.Reasons),
-                    // THE FIX: Handle if TailNumbers is null in an old file, by providing an empty list.
-                    TailNumbers = new ObservableCollection<string>(loadedOptions.TailNumbers ?? new List<string>())
+                    Reasons = new ObservableCollection<string>(loadedOptions.Reasons)
+
                 };
             }
             else

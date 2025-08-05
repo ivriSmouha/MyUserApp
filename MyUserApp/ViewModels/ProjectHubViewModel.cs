@@ -78,9 +78,8 @@ namespace MyUserApp.ViewModels
             }
             else
             {
-                // If no project is selected or it has no images, show the default placeholder.
-                PreviewImagePath = DefaultImagePath;
-                ImageCounterText = "No Image";
+                PreviewImagePath = "pack://application:,,,/Assets/placeholder.png";
+                ImageCounterText = "No Images";
             }
         }
     }

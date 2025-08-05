@@ -74,12 +74,12 @@
                                   SelectedItem="{Binding SelectedAircraftType}"
                                   IsEditable="False"/>
 
-                        <!-- 2. Tail Number (Now a ComboBox) -->
-                        <TextBlock Grid.Row="1" Text="Tail Number:" VerticalAlignment="Center" Margin="5"/>
+                        <!-- Tail Number (Dropdown from Admin settings) -->
+                        <TextBlock Grid.Row="1" Text="Aircraft Side:" VerticalAlignment="Center" Margin="5"/>
                         <ComboBox Grid.Row="1" Grid.Column="1" Margin="5"
-                                  ItemsSource="{Binding TailNumbers}"
-                                  SelectedItem="{Binding SelectedTailNumber}"
-                                  IsEditable="False"/>
+                         ItemsSource="{Binding TailNumbers}"
+                         SelectedItem="{Binding SelectedTailNumber}"
+                         IsEditable="False"/>
 
                         <!-- 3. Aircraft Side -->
                         <TextBlock Grid.Row="2" Text="Aircraft Side:" VerticalAlignment="Center" Margin="5"/>

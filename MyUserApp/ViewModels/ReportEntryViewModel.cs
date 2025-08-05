@@ -13,16 +13,20 @@ namespace MyUserApp.ViewModels
     public class ReportEntryViewModel : BaseViewModel
     {
         public ObservableCollection<string> AircraftTypes { get; }
+        public ObservableCollection<string> TailNumbers { get; }
         public ObservableCollection<string> AircraftSides { get; }
         public ObservableCollection<string> Reasons { get; }
         public ObservableCollection<string> Usernames { get; }
         public ObservableCollection<string> TailNumbers { get; }
         private string _selectedAircraftType;
         public string SelectedAircraftType { get => _selectedAircraftType; set { _selectedAircraftType = value; OnPropertyChanged(); } }
-        private string _selectedTailNumber;
-        public string SelectedTailNumber { get => _selectedTailNumber; set { _selectedTailNumber = value; OnPropertyChanged(); } }
+
+        private string _tailNumber;
+        public string SelectedTailNumber { get => _tailNumber; set { _tailNumber = value; OnPropertyChanged(); } }
+
         private string _selectedAircraftSide;
         public string SelectedAircraftSide { get => _selectedAircraftSide; set { _selectedAircraftSide = value; OnPropertyChanged(); } }
+
         private string _selectedReason;
         public string SelectedReason { get => _selectedReason; set { _selectedReason = value; OnPropertyChanged(); } }
         private string _selectedInspector;
@@ -41,12 +45,17 @@ namespace MyUserApp.ViewModels
         {
             var options = OptionsService.Instance.Options;
             AircraftTypes = new ObservableCollection<string>(options.AircraftTypes);
+            TailNumbers = new ObservableCollection<string>(options.TailNumbers);
             AircraftSides = new ObservableCollection<string>(options.AircraftSides);
             Reasons = new ObservableCollection<string>(options.Reasons);
-            TailNumbers = new ObservableCollection<string>(options.TailNumbers);
+
+            // --- NEW: Load usernames from the UserService ---
+            // Use LINQ's .Select() to get just the Username string from each UserModel
             var allUsernames = UserService.Instance.Users.Select(u => u.Username);
             Usernames = new ObservableCollection<string>(allUsernames);
             SelectedInspector = user.Username;
+
+            // ... (Initialize commands and image paths as before)
             SelectedImagePaths = new ObservableCollection<string>();
             SelectImagesCommand = new RelayCommand(SelectImages);
             SubmitReportCommand = new RelayCommand(SubmitReport, _ => CanSubmitReport());
@@ -82,7 +91,8 @@ namespace MyUserApp.ViewModels
             MessageBox.Show("Report submitted successfully!", "Success");
             OnFinished?.Invoke();
         }
-        private bool CanSubmitReport() => !string.IsNullOrEmpty(SelectedAircraftType) && !string.IsNullOrEmpty(SelectedTailNumber) && !string.IsNullOrEmpty(SelectedInspector);
+
+        private bool CanSubmitReport() => !string.IsNullOrEmpty(SelectedAircraftType) && !string.IsNullOrEmpty(TailNumber) && !string.IsNullOrEmpty(SelectedInspector);
         private void SelectImages(object obj)
         {
             var openFileDialog = new OpenFileDialog { Multiselect = true, Filter = "Image Files|*.jpg;*.jpeg;*.png;*.gif;*.bmp" };
