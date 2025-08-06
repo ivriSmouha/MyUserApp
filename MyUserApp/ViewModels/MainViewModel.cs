@@ -1,4 +1,5 @@
-﻿// ViewModels/MainViewModel.cs
+﻿// File: MyUserApp/ViewModels/MainViewModel.cs
+
 using MyUserApp.Models;
 using System.Linq;
 
@@ -39,6 +40,7 @@ namespace MyUserApp.ViewModels
 
         private void ShowProjectHub(UserModel user)
         {
+            if (user == null) { ShowLoginView(); return; }
             var projectHubVM = new ProjectHubViewModel(user);
             projectHubVM.OnLogoutRequested += ShowLoginView;
             projectHubVM.OnStartNewProjectRequested += ShowReportEntryScreen;
@@ -48,19 +50,33 @@ namespace MyUserApp.ViewModels
         private void ShowReportEntryScreen(UserModel user)
         {
             var reportEntryVM = new ReportEntryViewModel(user);
-            // This line handles the "Submit" or "Cancel" action.
-            reportEntryVM.OnFinished += () => ShowProjectHub(user);
 
-            // --- THIS IS THE FIX ---
-            // This line listens for the logout request and navigates back to the login screen.
+            reportEntryVM.OnCancelled += () => ShowProjectHub(user);
+            reportEntryVM.OnReportSubmitted += (report) => OnReportSubmissionSucceeded(report, user);
             reportEntryVM.OnLogoutRequested += ShowLoginView;
 
             CurrentView = reportEntryVM;
         }
 
+        // --- THIS IS THE FIX ---
+        // This method now correctly calls ShowImageEditor to navigate to the next screen.
+        private void OnReportSubmissionSucceeded(InspectionReportModel report, UserModel user)
+        {
+            ShowImageEditor(report, user);
+        }
+
+        private void ShowImageEditor(InspectionReportModel report, UserModel user)
+        {
+            var imageEditorVM = new ImageEditorViewModel(report, user);
+            imageEditorVM.OnFinished += () => ShowProjectHub(user);
+            CurrentView = imageEditorVM;
+        }
+
         private UserModel AuthenticateUser(string username, string password)
         {
-            return _adminPanelVM.Users.FirstOrDefault(u => u.Username == username && u.Password == password);
+            // Note: It is better practice to get users from the UserService directly.
+            // This will work, but consider changing it for consistency.
+            return Services.UserService.Instance.Users.FirstOrDefault(u => u.Username == username && u.Password == password);
         }
     }
 }

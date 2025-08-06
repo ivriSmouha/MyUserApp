@@ -2,8 +2,43 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:MyUserApp"
+             xmlns:views="clr-namespace:MyUserApp.Views"
+             xmlns:viewModels="clr-namespace:MyUserApp.ViewModels"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-         
+        <ResourceDictionary>
+
+            <!-- DataTemplates to connect ViewModels to Views -->
+            <DataTemplate DataType="{x:Type viewModels:LoginViewModel}">
+                <views:LoginView/>
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type viewModels:AdminPanelViewModel}">
+                <views:AdminPanelView/>
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type viewModels:ProjectHubViewModel}">
+                <views:ProjectHubView/>
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type viewModels:ReportEntryViewModel}">
+                <views:ReportEntryView/>
+            </DataTemplate>
+
+            <!-- 
+            ===================================================================
+            ==                          ADD THIS BLOCK                         ==
+            ===================================================================
+            -->
+            <DataTemplate DataType="{x:Type viewModels:ImageEditorViewModel}">
+                <views:ImageEditorView/>
+            </DataTemplate>
+            <!-- 
+            ===================================================================
+            -->
+
+            <!-- Your other resources like converters might be here -->
+
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

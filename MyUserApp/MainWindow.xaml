@@ -12,6 +12,8 @@
     <Window.DataContext>
         <viewmodels:MainViewModel/>
     </Window.DataContext>
+    
+
 
     <Window.Resources>
         <!-- This dictionary tells WPF which View to use for each ViewModel -->

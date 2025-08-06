@@ -1,0 +1,168 @@
+﻿<UserControl x:Class="MyUserApp.Views.ImageEditorView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:viewModels="clr-namespace:MyUserApp.ViewModels"
+             xmlns:models="clr-namespace:MyUserApp.Models"
+             xmlns:converters="clr-namespace:MyUserApp.Converters"
+             d:DataContext="{d:DesignInstance Type=viewModels:ImageEditorViewModel}"
+             mc:Ignorable="d" 
+             d:DesignHeight="800" d:DesignWidth="1200"
+             FontFamily="Segoe UI">
+
+    <UserControl.Resources>
+        <converters:BrightnessToOverlayConverter x:Key="BrightnessConverter"/>
+        <converters:SelectedToBorderBrushConverter x:Key="SelectedToBorderBrushConverter"/>
+        <converters:SelectedToBrushConverter x:Key="SelectedToBrushConverter"/>
+        <converters:SelectedToStrokeThicknessConverter x:Key="SelectedToStrokeThicknessConverter"/>
+        <converters:RelativePositionConverter x:Key="RelativePositionConverter"/>
+        <converters:RelativeSizeConverter x:Key="RelativeSizeConverter"/>
+    </UserControl.Resources>
+
+    <Grid Background="#3c3c3c">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="220"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Left Panel for Thumbnails -->
+        <Border Grid.Column="0" Background="#2d2d30" BorderBrush="#444" BorderThickness="0,0,1,0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl ItemsSource="{Binding ImageThumbnails}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Command="{Binding DataContext.SwitchImageCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Style="{StaticResource {x:Static ToolBar.ButtonStyleKey}}" BorderThickness="2" Margin="5" Padding="0" ToolTip="{Binding}">
+                                <Button.BorderBrush>
+                                    <MultiBinding Converter="{StaticResource SelectedToBorderBrushConverter}">
+                                        <Binding Path="."/>
+                                        <Binding Path="DataContext.SelectedImage" RelativeSource="{RelativeSource AncestorType=UserControl}"/>
+                                    </MultiBinding>
+                                </Button.BorderBrush>
+                                <Image Source="{Binding}" Width="150" Height="100" Stretch="UniformToFill"/>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Main Content Area -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Top Toolbar -->
+            <Border Grid.Row="0" Background="#2d2d30" BorderBrush="#444" BorderThickness="0,0,0,1" Padding="5">
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Undo" Command="{Binding UndoCommand}" Margin="2" Padding="10,2"/>
+                    <Button Content="Redo" Command="{Binding RedoCommand}" Margin="2" Padding="10,2"/>
+                    <Separator Margin="5,0"/>
+                    <Button Content="Rotate Left" Command="{Binding RotateLeftCommand}" Margin="2" Padding="10,2"/>
+                    <Button Content="Rotate Right" Command="{Binding RotateRightCommand}" Margin="2" Padding="10,2"/>
+                    <Separator Margin="5,0"/>
+                    <TextBlock Text="Brightness:" VerticalAlignment="Center" Margin="10,0,5,0" Foreground="White"/>
+                    <Slider Width="150" Minimum="0" Maximum="2" Value="{Binding Brightness, Mode=TwoWay}" VerticalAlignment="Center" ToolTip="Adjust image brightness"/>
+                    <Separator Margin="5,0"/>
+                    <Button Content="Reset View" Command="{Binding ResetViewCommand}" Margin="2" Padding="10,2"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Image Editor Canvas Area -->
+            <Grid Grid.Row="1" x:Name="ContentGrid" ClipToBounds="True" Background="#1e1e1e" MouseWheel="ContentGrid_MouseWheel" MouseLeftButtonDown="ContentGrid_MouseLeftButtonDown" MouseMove="ContentGrid_MouseMove" MouseLeftButtonUp="ContentGrid_MouseLeftButtonUp">
+                <Grid RenderTransformOrigin="0.5,0.5">
+                    <Grid.RenderTransform>
+                        <TransformGroup>
+                            <ScaleTransform ScaleX="{Binding ZoomScale}" ScaleY="{Binding ZoomScale}" CenterX="{Binding TransformOrigin.X}" CenterY="{Binding TransformOrigin.Y}"/>
+                            <TranslateTransform X="{Binding PanX}" Y="{Binding PanY}"/>
+                            <RotateTransform Angle="{Binding RotationAngle}"/>
+                        </TransformGroup>
+                    </Grid.RenderTransform>
+
+                    <Image x:Name="MainImage" Source="{Binding SelectedImage}" Stretch="Uniform" />
+                    <Rectangle Fill="{Binding Brightness, Converter={StaticResource BrightnessConverter}, ConverterParameter=Brush}" Opacity="{Binding Brightness, Converter={StaticResource BrightnessConverter}, ConverterParameter=Opacity}"/>
+
+                    <ItemsControl x:Name="AnnotationCanvas" ItemsSource="{Binding FilteredAnnotations}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <Canvas/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type models:AnnotationModel}">
+                                <Ellipse MouseLeftButtonDown="Annotation_MouseLeftButtonDown" Cursor="Hand" Fill="Transparent" StrokeThickness="{Binding IsSelected, Converter={StaticResource SelectedToStrokeThicknessConverter}}">
+                                    <Ellipse.Stroke>
+                                        <MultiBinding Converter="{StaticResource SelectedToBrushConverter}">
+                                            <Binding Path="Author"/>
+                                            <Binding Path="IsSelected"/>
+                                        </MultiBinding>
+                                    </Ellipse.Stroke>
+
+                                    <!-- ============================================= -->
+                                    <!-- ===      THE XAML FIX (ALL 4 BINDINGS)    === -->
+                                    <!-- ============================================= -->
+                                    <Canvas.Left>
+                                        <MultiBinding Converter="{StaticResource RelativePositionConverter}">
+                                            <Binding Path="CenterX"/>
+                                            <Binding Path="Radius"/>
+                                            <Binding ElementName="PreviewCanvas" Path="ActualWidth"/>
+                                        </MultiBinding>
+                                    </Canvas.Left>
+                                    <Canvas.Top>
+                                        <MultiBinding Converter="{StaticResource RelativePositionConverter}">
+                                            <Binding Path="CenterY"/>
+                                            <Binding Path="Radius"/>
+                                            <Binding ElementName="PreviewCanvas" Path="ActualHeight"/>
+                                        </MultiBinding>
+                                    </Canvas.Top>
+                                    <Ellipse.Width>
+                                        <MultiBinding Converter="{StaticResource RelativeSizeConverter}">
+                                            <Binding Path="Radius"/>
+                                            <Binding ElementName="PreviewCanvas" Path="ActualWidth"/>
+                                        </MultiBinding>
+                                    </Ellipse.Width>
+                                    <Ellipse.Height>
+                                        <MultiBinding Converter="{StaticResource RelativeSizeConverter}">
+                                            <Binding Path="Radius"/>
+                                            <Binding ElementName="PreviewCanvas" Path="ActualHeight"/>
+                                        </MultiBinding>
+                                    </Ellipse.Height>
+                                </Ellipse>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Canvas x:Name="PreviewCanvas" Background="Transparent"/>
+                </Grid>
+            </Grid>
+
+            <!-- Bottom Status Bar -->
+            <StatusBar Grid.Row="2" Background="#007acc">
+                <StatusBarItem>
+                    <TextBlock Text="{Binding ProjectName}" Foreground="White" FontWeight="Bold"/>
+                </StatusBarItem>
+            </StatusBar>
+        </Grid>
+
+        <!-- Right Panel -->
+        <Border Grid.Column="2" Background="#2d2d30" BorderBrush="#444" BorderThickness="1,0,0,0">
+            <StackPanel Margin="10">
+                <TextBlock Text="FILTERS" Foreground="White" FontWeight="Bold" Margin="0,0,0,5"/>
+                <CheckBox Content="Inspector" IsChecked="{Binding ShowInspectorAnnotations}" Foreground="White" Margin="0,2"/>
+                <CheckBox Content="Verifier" IsChecked="{Binding ShowVerifierAnnotations}" Foreground="White" Margin="0,2"/>
+                <CheckBox Content="AI" IsChecked="{Binding ShowAiAnnotations}" Foreground="White" Margin="0,2"/>
+                <Separator Margin="0,10"/>
+                <TextBlock Text="HOW TO USE" Foreground="Gray" Margin="0,10,0,5" TextDecorations="Underline"/>
+                <TextBlock Text="Draw Circle: Click and drag." Foreground="#ccc" TextWrapping="Wrap"/>
+                <TextBlock Text="Pan Image: Hold SPACEBAR, then click and drag." Foreground="#ccc" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                <TextBlock Text="Zoom: Use the mouse wheel." Foreground="#ccc" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                <Separator Margin="0,10"/>
+                <Button Content="Finish  Export" Command="{Binding FinishEditingCommand}" FontWeight="Bold" Background="#2d882d" Foreground="White" Padding="5" Margin="0,10,0,0"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

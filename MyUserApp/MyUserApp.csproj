@@ -10,10 +10,15 @@
 
   <ItemGroup>
     <None Remove="Assets\placeholder.png" />
+    <None Remove="Effects\BrightnessEffect.ps" />
   </ItemGroup>
 
   <ItemGroup>
     <Resource Include="Assets\placeholder.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Effects\" />
   </ItemGroup>
 
 </Project>

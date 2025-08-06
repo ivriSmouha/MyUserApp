@@ -47,18 +47,17 @@ namespace MyUserApp.ViewModels
         public ICommand LogoutCommand { get; }
 
         // Events
-        public event Action OnFinished;
+        public event Action<InspectionReportModel> OnReportSubmitted;
+        public event Action OnCancelled;
         public event Action OnLogoutRequested;
 
         public ReportEntryViewModel(UserModel user)
         {
-            // STEP 1: Initialize commands FIRST to avoid NullReferenceException
             SelectImagesCommand = new RelayCommand(SelectImages);
             SubmitReportCommand = new RelayCommand(SubmitReport, _ => CanSubmitReport());
-            CancelCommand = new RelayCommand(param => OnFinished?.Invoke());
+            CancelCommand = new RelayCommand(param => OnCancelled?.Invoke());
             LogoutCommand = new RelayCommand(param => OnLogoutRequested?.Invoke());
 
-            // STEP 2: Initialize collections
             SelectedImagePaths = new ObservableCollection<string>();
             var options = OptionsService.Instance.Options;
             AircraftTypes = new ObservableCollection<string>(options.AircraftTypes);
@@ -68,7 +67,6 @@ namespace MyUserApp.ViewModels
             var allUsernames = UserService.Instance.Users.Select(u => u.Username);
             Usernames = new ObservableCollection<string>(allUsernames);
 
-            // STEP 3: Now it's safe to set properties that trigger commands
             SelectedInspector = user.Username;
         }
 
@@ -88,17 +86,18 @@ namespace MyUserApp.ViewModels
         {
             return !string.IsNullOrEmpty(SelectedAircraftType) &&
                    !string.IsNullOrEmpty(SelectedTailNumber) &&
-                   !string.IsNullOrEmpty(SelectedInspector);
+                   !string.IsNullOrEmpty(SelectedInspector) &&
+                   SelectedImagePaths.Any();
         }
 
         private void SubmitReport(object obj)
         {
-            string projectName = $"{this.SelectedAircraftType} - {this.SelectedTailNumber} ({this.SelectedAircraftSide})";
+            string projectName = $"{SelectedAircraftType} - {SelectedTailNumber} ({SelectedAircraftSide})";
             string reportImageFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ReportImages", Guid.NewGuid().ToString());
             Directory.CreateDirectory(reportImageFolder);
 
-            var newImagePaths = new System.Collections.Generic.List<string>();
-            foreach (string originalPath in this.SelectedImagePaths)
+            var newImagePaths = new List<string>();
+            foreach (string originalPath in SelectedImagePaths)
             {
                 string fileName = Path.GetFileName(originalPath);
                 string destinationPath = Path.Combine(reportImageFolder, fileName);
@@ -116,18 +115,18 @@ namespace MyUserApp.ViewModels
             var newReport = new InspectionReportModel
             {
                 ProjectName = projectName,
-                AircraftType = this.SelectedAircraftType,
-                TailNumber = this.SelectedTailNumber,
-                AircraftSide = this.SelectedAircraftSide,
-                Reason = this.SelectedReason,
-                InspectorName = this.SelectedInspector,
-                VerifierName = this.SelectedVerifier,
+                AircraftType = SelectedAircraftType,
+                TailNumber = SelectedTailNumber,
+                AircraftSide = SelectedAircraftSide,
+                Reason = SelectedReason,
+                InspectorName = SelectedInspector,
+                VerifierName = SelectedVerifier,
                 ImagePaths = newImagePaths
             };
 
             ReportService.Instance.AddReport(newReport);
             MessageBox.Show("Report submitted successfully!", "Success");
-            OnFinished?.Invoke();
+            OnReportSubmitted?.Invoke(newReport);
         }
     }
 }
