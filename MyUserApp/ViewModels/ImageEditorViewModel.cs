@@ -39,9 +39,22 @@ namespace MyUserApp.ViewModels
             get => _selectedImage;
             set
             {
+                // ===================================================================
+                // ==               FIX FOR ISOLATING ANNOTATIONS (Bug #1)          ==
+                // ===================================================================
+                // BEFORE changing the image, we save the current annotations to our
+                // session dictionary. This ensures that work on the previous image is kept.
+                if (!string.IsNullOrEmpty(_selectedImage) && CurrentAnnotations != null)
+                {
+                    _sessionAnnotations[_selectedImage] = CurrentAnnotations;
+                }
+
                 _selectedImage = value;
                 OnPropertyChanged();
+
+                // Now, load the annotations specifically for the newly selected image.
                 LoadAnnotationsForCurrentImage();
+                // ===================================================================
             }
         }
 
@@ -76,6 +89,7 @@ namespace MyUserApp.ViewModels
             {
                 _showInspectorAnnotations = value;
                 OnPropertyChanged();
+                // We refresh the view directly from the view itself now, this is kept for compatibility
                 FilteredAnnotations?.Refresh();
             }
         }
@@ -226,7 +240,7 @@ namespace MyUserApp.ViewModels
         private async System.Threading.Tasks.Task FinishEditing()
         {
             // Save current annotations before finishing
-            if (!string.IsNullOrEmpty(SelectedImage) && CurrentAnnotations.Any())
+            if (!string.IsNullOrEmpty(SelectedImage) && CurrentAnnotations != null)
             {
                 _sessionAnnotations[SelectedImage] = CurrentAnnotations;
             }
@@ -302,32 +316,48 @@ namespace MyUserApp.ViewModels
         /// </summary>
         private void LoadAnnotationsForCurrentImage()
         {
-            // Get annotations for this image if they exist
-            if (_sessionAnnotations.TryGetValue(SelectedImage, out var previousAnnotations))
+            // ===================================================================
+            // ==       FIX FOR ISOLATING ANNOTATIONS (Bug #1) - Part 2         ==
+            // ===================================================================
+            // This logic ensures that we either load existing annotations for an
+            // image or create a new empty set if it's the first time we're
+            // viewing this image in this session.
+
+            if (SelectedImage == null) return;
+
+            // Try to get existing annotations from our session dictionary.
+            if (_sessionAnnotations.TryGetValue(SelectedImage, out var existingAnnotations))
             {
-                CurrentAnnotations = previousAnnotations;
+                CurrentAnnotations = existingAnnotations;
             }
             else
             {
+                // If no annotations exist for this image path, create a new list...
                 CurrentAnnotations = new ObservableCollection<AnnotationModel>();
+                // ...and add it to the dictionary for future use.
+                _sessionAnnotations[SelectedImage] = CurrentAnnotations;
             }
+            // ===================================================================
 
-            // Set up filtered view
+            // Set up filtered view (this is for XAML binding if using CollectionViewSource)
             FilteredAnnotations = CollectionViewSource.GetDefaultView(CurrentAnnotations);
             FilteredAnnotations.Filter = ApplyAnnotationFilter;
 
-            // Notify UI of changes
+            // Notify UI of changes to the main collection and the filtered view.
             OnPropertyChanged(nameof(CurrentAnnotations));
             OnPropertyChanged(nameof(FilteredAnnotations));
 
-            // Clear undo/redo stacks for new image
+            // A new image has been loaded, so we should clear the undo/redo history
+            // as those actions applied to the previous image.
             _undoStack.Clear();
             _redoStack.Clear();
+            ((RelayCommand)UndoCommand).RaiseCanExecuteChanged();
+            ((RelayCommand)RedoCommand).RaiseCanExecuteChanged();
 
-            // Clear selection
+            // Clear any active selection from the previous image.
             SelectedAnnotation = null;
 
-            // Reset view
+            // Reset zoom/pan/rotation for the new image.
             ResetView(null);
         }
 
@@ -339,8 +369,16 @@ namespace MyUserApp.ViewModels
             if (CanDeleteAnnotation())
             {
                 ExecuteCommand(new DeleteAnnotationCommand(CurrentAnnotations, SelectedAnnotation));
+
+                // ===================================================================
+                // ==                 FIX FOR DELETION BUG (Bug #13)                ==
+                // ===================================================================
+                // After deleting, we must clear the selection. This prevents a
+                // "ghost" selection where the UI might think an annotation is still
+                // selected even though it's gone from the collection.
+                SelectedAnnotation = null;
+                // ===================================================================
             }
-            SelectedAnnotation = null;
         }
 
         private bool CanUndo() => _undoStack.Any();
@@ -357,22 +395,28 @@ namespace MyUserApp.ViewModels
 
         private void Undo(object obj)
         {
-            var command = _undoStack.Pop();
-            command.UnExecute();
-            _redoStack.Push(command);
-            SelectedAnnotation = null;
-            ((RelayCommand)UndoCommand).RaiseCanExecuteChanged();
-            ((RelayCommand)RedoCommand).RaiseCanExecuteChanged();
+            if (_undoStack.Any())
+            {
+                var command = _undoStack.Pop();
+                command.UnExecute();
+                _redoStack.Push(command);
+                SelectedAnnotation = null;
+                ((RelayCommand)UndoCommand).RaiseCanExecuteChanged();
+                ((RelayCommand)RedoCommand).RaiseCanExecuteChanged();
+            }
         }
 
         private void Redo(object obj)
         {
-            var command = _redoStack.Pop();
-            command.Execute();
-            _undoStack.Push(command);
-            SelectedAnnotation = null;
-            ((RelayCommand)UndoCommand).RaiseCanExecuteChanged();
-            ((RelayCommand)RedoCommand).RaiseCanExecuteChanged();
+            if (_redoStack.Any())
+            {
+                var command = _redoStack.Pop();
+                command.Execute();
+                _undoStack.Push(command);
+                SelectedAnnotation = null;
+                ((RelayCommand)UndoCommand).RaiseCanExecuteChanged();
+                ((RelayCommand)RedoCommand).RaiseCanExecuteChanged();
+            }
         }
         #endregion
     }

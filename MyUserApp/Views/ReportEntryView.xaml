@@ -65,7 +65,7 @@
                             <!-- 6. Verifier -->
                         </Grid.RowDefinitions>
 
-                        <!-- UPDATED ORDER AND CONTROL TYPES -->
+                      
 
                         <!-- 1. Aircraft Type -->
                         <TextBlock Grid.Row="0" Text="Aircraft Type:" VerticalAlignment="Center" Margin="5"/>
@@ -75,7 +75,7 @@
                                   IsEditable="False"/>
 
                         <!-- Tail Number (Dropdown from Admin settings) -->
-                        <TextBlock Grid.Row="1" Text="Aircraft Side:" VerticalAlignment="Center" Margin="5"/>
+                        <TextBlock Grid.Row="1" Text="Tail Number:" VerticalAlignment="Center" Margin="5"/>
                         <ComboBox Grid.Row="1" Grid.Column="1" Margin="5"
                          ItemsSource="{Binding TailNumbers}"
                          SelectedItem="{Binding SelectedTailNumber}"
@@ -95,7 +95,7 @@
                                   SelectedItem="{Binding SelectedReason}"
                                   IsEditable="False"/>
 
-                        <!-- 5. Inspector Name (Now ENABLED for selection) -->
+                        <!-- 5. Inspector Name -->
                         <TextBlock Grid.Row="4" Text="Inspector Name:" VerticalAlignment="Center" Margin="5"/>
                         <ComboBox Grid.Row="4" Grid.Column="1" Margin="5"
                                   ItemsSource="{Binding Usernames}"

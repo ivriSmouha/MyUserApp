@@ -1,4 +1,5 @@
-﻿using MyUserApp.Models;
+﻿// File: MyUserApp/Services/ImageExportService.cs
+using MyUserApp.Models;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -12,12 +13,12 @@ using System.Windows.Media.Imaging;
 namespace MyUserApp.Services
 {
     /// <summary>
-    /// Debug version of export service that adds visual debugging markers to help identify coordinate issues.
+    /// Service to export images with annotations. The debug markers help verify coordinate accuracy.
     /// </summary>
     public class ImageExportService
     {
         /// <summary>
-        /// Export with visual debug markers to help identify coordinate differences.
+        /// Exports images with annotations and visual debug markers.
         /// </summary>
         public async Task<string> ExportImagesAsync(InspectionReportModel report, Dictionary<string, ObservableCollection<AnnotationModel>> allAnnotations)
         {
@@ -43,7 +44,7 @@ namespace MyUserApp.Services
         }
 
         /// <summary>
-        /// Export with visual debug markers to help identify exactly where coordinates are being placed.
+        /// Renders and saves a single image with its annotations and debug information.
         /// </summary>
         private void ExportWithVisualDebugMarkers(string originalImagePath, ObservableCollection<AnnotationModel> annotations, string outputDirectory)
         {
@@ -51,56 +52,67 @@ namespace MyUserApp.Services
             {
                 BitmapImage originalBitmap = new BitmapImage(new Uri(originalImagePath));
 
-                double originalWidth = originalBitmap.PixelWidth;
-                double originalHeight = originalBitmap.PixelHeight;
+                // ===================================================================
+                // ==          FIX FOR EXPORT ACCURACY (Bug #2)                     ==
+                // ===================================================================
+                // The root cause of the alignment issue was using an arbitrary scale.
+                // The correct approach is to render the export at the image's
+                // NATIVE resolution. We get this directly from the bitmap's pixel dimensions.
 
-                // Export at the same scale as the previous version that had close coordinates
-                double scale = 4.87; // From your debug output
-                int exportWidth = (int)(originalWidth * scale);
-                int exportHeight = (int)(originalHeight * scale);
+                // REMOVED: The incorrect hard-coded scale factor.
+                // double scale = 4.87; 
+
+                // CHANGED: The export dimensions now match the original image EXACTLY.
+                int exportWidth = originalBitmap.PixelWidth;
+                int exportHeight = originalBitmap.PixelHeight;
+                // ===================================================================
 
                 System.Diagnostics.Debug.WriteLine($"\n=== VISUAL DEBUG EXPORT ===");
-                System.Diagnostics.Debug.WriteLine($"Original: {originalWidth} x {originalHeight}");
-                System.Diagnostics.Debug.WriteLine($"Export: {exportWidth} x {exportHeight}");
+                System.Diagnostics.Debug.WriteLine($"Original: {originalBitmap.PixelWidth} x {originalBitmap.PixelHeight}");
+                System.Diagnostics.Debug.WriteLine($"Export Target: {exportWidth} x {exportHeight}");
 
                 var drawingVisual = new DrawingVisual();
                 using (DrawingContext drawingContext = drawingVisual.RenderOpen())
                 {
-                    // Draw the image
+                    // Draw the base image to fill the entire render target.
                     drawingContext.DrawImage(originalBitmap, new Rect(0, 0, exportWidth, exportHeight));
 
-                    // Add coordinate grid for debugging
+                    // Add a coordinate grid for debugging.
                     DrawDebugGrid(drawingContext, exportWidth, exportHeight);
 
-                    // Draw each annotation with debug markers
+                    // Draw each annotation with debug markers.
                     int annotationIndex = 0;
                     foreach (var annotation in annotations)
                     {
+                        // Now that exportWidth/Height match the original image, these
+                        // calculations will produce the correct pixel coordinates.
                         double absoluteCenterX = annotation.CenterX * exportWidth;
                         double absoluteCenterY = annotation.CenterY * exportHeight;
-                        double absoluteRadius = annotation.Radius * exportWidth;
+                        double absoluteRadius = annotation.Radius * exportWidth; // Use width for consistent radius scaling
 
                         System.Diagnostics.Debug.WriteLine($"Export Debug Annotation #{annotationIndex}:");
                         System.Diagnostics.Debug.WriteLine($"  Center: ({absoluteCenterX:F2}, {absoluteCenterY:F2}), Radius: {absoluteRadius:F2}");
 
-                        // Draw the main annotation
+                        // Draw the main annotation.
                         var brush = GetBrushForAuthor(annotation.Author);
                         var fillBrush = new SolidColorBrush(brush.Color) { Opacity = 0.2 };
-                        var borderPen = new Pen(brush, 4);
+                        var borderPen = new Pen(brush, 4); // Stroke thickness can be adjusted here
 
                         Point center = new Point(absoluteCenterX, absoluteCenterY);
                         drawingContext.DrawEllipse(fillBrush, borderPen, center, absoluteRadius, absoluteRadius);
 
-                        // Add debug markers
+                        // Add debug markers for verification.
                         DrawDebugMarkers(drawingContext, absoluteCenterX, absoluteCenterY, absoluteRadius, annotationIndex);
 
                         annotationIndex++;
                     }
                 }
 
+                // Render the visual content to a bitmap.
                 var renderTargetBitmap = new RenderTargetBitmap(exportWidth, exportHeight, 96, 96, PixelFormats.Pbgra32);
                 renderTargetBitmap.Render(drawingVisual);
 
+                // Encode the bitmap as a JPEG.
                 var jpegEncoder = new JpegBitmapEncoder { QualityLevel = 95 };
                 jpegEncoder.Frames.Add(BitmapFrame.Create(renderTargetBitmap));
 
@@ -125,16 +137,12 @@ namespace MyUserApp.Services
         private void DrawDebugGrid(DrawingContext drawingContext, double width, double height)
         {
             var gridPen = new Pen(Brushes.Gray, 1) { DashStyle = DashStyles.Dot };
-
-            // Draw vertical lines every 10% of width
-            for (int i = 1; i < 10; i++)
+            for (int i = 1; i < 10; i++) // Vertical lines
             {
                 double x = width * (i / 10.0);
                 drawingContext.DrawLine(gridPen, new Point(x, 0), new Point(x, height));
             }
-
-            // Draw horizontal lines every 10% of height
-            for (int i = 1; i < 10; i++)
+            for (int i = 1; i < 10; i++) // Horizontal lines
             {
                 double y = height * (i / 10.0);
                 drawingContext.DrawLine(gridPen, new Point(0, y), new Point(width, y));
@@ -146,27 +154,20 @@ namespace MyUserApp.Services
         /// </summary>
         private void DrawDebugMarkers(DrawingContext drawingContext, double centerX, double centerY, double radius, int index)
         {
-            // Draw a small crosshair at the exact center
             var crossPen = new Pen(Brushes.Lime, 2);
             double crossSize = 10;
-            drawingContext.DrawLine(crossPen,
-                new Point(centerX - crossSize, centerY),
-                new Point(centerX + crossSize, centerY));
-            drawingContext.DrawLine(crossPen,
-                new Point(centerX, centerY - crossSize),
-                new Point(centerX, centerY + crossSize));
+            drawingContext.DrawLine(crossPen, new Point(centerX - crossSize, centerY), new Point(centerX + crossSize, centerY));
+            drawingContext.DrawLine(crossPen, new Point(centerX, centerY - crossSize), new Point(centerX, centerY + crossSize));
 
-            // Add text label with coordinates
             var text = new FormattedText(
                 $"#{index}: ({centerX:F0}, {centerY:F0})",
                 CultureInfo.InvariantCulture,
                 FlowDirection.LeftToRight,
                 new Typeface("Arial"),
-                12,
+                16, // Slightly larger text for better readability on high-res images
                 Brushes.White,
                 96);
 
-            // Position text above the annotation
             drawingContext.DrawText(text, new Point(centerX - text.Width / 2, centerY - radius - 20));
         }
 
