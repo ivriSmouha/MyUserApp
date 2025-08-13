@@ -8,7 +8,6 @@
              xmlns:viewmodels="clr-namespace:MyUserApp.ViewModels"
              xmlns:converters="clr-namespace:MyUserApp.Converters"
              
-            
              xmlns:skia="clr-namespace:SkiaSharp.Views.WPF;assembly=SkiaSharp.Views.WPF"
 
              d:DataContext="{d:DesignInstance Type=viewmodels:ImageEditorViewModel}"
@@ -54,13 +53,16 @@
             </DockPanel>
         </Border>
 
-        <!-- Column 1: Switched to the more fundamental SKElement -->
+        <!-- Column 1: SkiaSharp Canvas -->
         <Grid Grid.Column="1" Background="Black" ClipToBounds="True">
             <!-- 
-              Using the more basic SKElement as suggested. It is less likely to
-              fail in the Visual Studio designer, while providing the same drawing surface.
+              CHANGES:
+              1. Added Focusable="True" so the element can receive keyboard input.
+              2. Added the KeyDown event handler to listen for the Delete key.
             -->
             <skia:SKElement x:Name="SkiaElement"
+                            Focusable="True"
+                            KeyDown="SkiaElement_KeyDown"
                             PaintSurface="CanvasView_PaintSurface"
                             MouseWheel="CanvasView_MouseWheel"
                             MouseLeftButtonDown="CanvasView_MouseLeftButtonDown"

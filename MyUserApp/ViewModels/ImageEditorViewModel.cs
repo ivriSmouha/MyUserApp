@@ -123,12 +123,7 @@ namespace MyUserApp.ViewModels
 
             UndoCommand = new RelayCommand(Undo, CanUndo);
             RedoCommand = new RelayCommand(Redo, CanRedo);
-
-            // ===================================================================
-            // ==     CORRECTION: Changed lambda from () to _ to match Predicate    ==
-            // ===================================================================
             DeleteAnnotationCommand = new RelayCommand(DeleteSelectedAnnotation, _ => SelectedAnnotation != null);
-
             ResetViewCommand = new RelayCommand(ResetView);
             RunAiAnalysisCommand = new RelayCommand(async _ => await RunAiAnalysis());
             FinishEditingCommand = new RelayCommand(FinishEditing);
@@ -173,41 +168,59 @@ namespace MyUserApp.ViewModels
         #region Drawing and Rendering
         public void Draw(SKSurface surface, SKImageInfo info)
         {
-            _lastCanvasInfo = info; // Cache canvas info for coordinate transforms
             var canvas = surface.Canvas;
             canvas.Clear(SKColors.Black);
 
             if (_currentBitmap == null) return;
 
+            // If canvas size is new or uninitialized, update it and fit the image.
+            if (_lastCanvasInfo.Width != info.Width || _lastCanvasInfo.Height != info.Height)
+            {
+                _lastCanvasInfo = info;
+                FitImageToView();
+            }
+
             canvas.Save();
 
-            var matrix = GetImageToScreenMatrix(info);
-            canvas.SetMatrix(matrix);
+            // ===================================================================
+            // ==     REVISED DRAWING LOGIC: Simple, sequential transformations   ==
+            // ===================================================================
+            // This is a more robust and standard way to handle graphics transformations.
 
-            canvas.DrawBitmap(_currentBitmap, 0, 0);
+            // 1. Move the origin to the center of the canvas.
+            canvas.Translate(info.Width / 2f, info.Height / 2f);
 
+            // 2. Apply user-controlled panning.
+            canvas.Translate(_panOffset.X, _panOffset.Y);
+
+            // 3. Apply rotation around the current origin.
+            canvas.RotateDegrees(_rotationDegrees);
+
+            // 4. Apply zoom scaling from the current origin.
+            canvas.Scale(_zoomScale);
+
+            // 5. Draw the bitmap. We offset it by half its width/height to center it on the origin.
+            canvas.DrawBitmap(_currentBitmap, -_currentBitmap.Width / 2f, -_currentBitmap.Height / 2f);
+
+            // --- Draw annotations relative to the centered image ---
             using (var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke })
             {
-                foreach (var annotation in CurrentAnnotations.Where(ShouldShowAnnotation))
-                {
-                    paint.Color = GetAnnotationSKColor(annotation);
-                    paint.StrokeWidth = annotation.IsSelected ? (4 / _zoomScale) : (2 / _zoomScale);
-                    float absCenterX = (float)(annotation.CenterX * _currentBitmap.Width);
-                    float absCenterY = (float)(annotation.CenterY * _currentBitmap.Height);
-                    float absRadius = (float)(annotation.Radius * _currentBitmap.Width);
-                    canvas.DrawOval(absCenterX, absCenterY, absRadius, absRadius, paint);
-                }
+                var annotationsToDraw = CurrentAnnotations.Where(ShouldShowAnnotation).ToList();
+                if (_previewAnnotation != null) annotationsToDraw.Add(_previewAnnotation);
 
-                if (_previewAnnotation != null)
+                foreach (var annotation in annotationsToDraw)
                 {
-                    paint.Color = SKColors.White;
-                    paint.StrokeWidth = 2 / _zoomScale;
-                    paint.PathEffect = SKPathEffect.CreateDash(new float[] { 10 / _zoomScale, 10 / _zoomScale }, 0);
-                    float absCenterX = (float)(_previewAnnotation.CenterX * _currentBitmap.Width);
-                    float absCenterY = (float)(_previewAnnotation.CenterY * _currentBitmap.Height);
-                    float absRadius = (float)(_previewAnnotation.Radius * _currentBitmap.Width);
-                    canvas.DrawOval(absCenterX, absCenterY, absRadius, absRadius, paint);
-                    paint.PathEffect = null;
+                    bool isPreview = annotation == _previewAnnotation;
+                    paint.Color = isPreview ? SKColors.White : GetAnnotationSKColor(annotation);
+                    paint.StrokeWidth = isPreview || annotation.IsSelected ? (4 / _zoomScale) : (2 / _zoomScale);
+                    paint.PathEffect = isPreview ? SKPathEffect.CreateDash(new float[] { 10 / _zoomScale, 10 / _zoomScale }, 0) : null;
+
+                    // Calculate annotation position relative to the image's center (0,0)
+                    float circleX = (float)((annotation.CenterX - 0.5) * _currentBitmap.Width);
+                    float circleY = (float)((annotation.CenterY - 0.5) * _currentBitmap.Height);
+                    float circleR = (float)(annotation.Radius * _currentBitmap.Width);
+
+                    canvas.DrawOval(circleX, circleY, circleR, circleR, paint);
                 }
             }
 
@@ -294,12 +307,20 @@ namespace MyUserApp.ViewModels
         #endregion
 
         #region Command Methods
-        private void ResetView(object _ = null)
+        private void FitImageToView()
         {
-            _zoomScale = 1.0f;
+            if (_currentBitmap == null || _lastCanvasInfo.Width == 0) return;
+            var widthScale = (float)_lastCanvasInfo.Width / _currentBitmap.Width;
+            var heightScale = (float)_lastCanvasInfo.Height / _currentBitmap.Height;
+            _zoomScale = Math.Min(widthScale, heightScale);
             _panOffset = SKPoint.Empty;
             _rotationDegrees = 0f;
             InvalidateCanvas();
+        }
+
+        private void ResetView(object _ = null)
+        {
+            FitImageToView();
         }
 
         private void Rotate(float angle)
@@ -443,36 +464,35 @@ namespace MyUserApp.ViewModels
             };
         }
 
-        private SKMatrix GetImageToScreenMatrix(SKImageInfo info)
+        private SKMatrix GetScreenToImageMatrix()
         {
-            if (_currentBitmap == null) return SKMatrix.Identity;
+            if (_currentBitmap == null || _lastCanvasInfo.Width == 0) return SKMatrix.Identity;
 
+            // This matrix represents the transformation from image coordinates to screen coordinates.
             var matrix = SKMatrix.CreateIdentity();
-            float initialOffsetX = (info.Width - _currentBitmap.Width) / 2f;
-            float initialOffsetY = (info.Height - _currentBitmap.Height) / 2f;
+            SKMatrix.PostConcat(ref matrix, SKMatrix.CreateTranslation(-_currentBitmap.Width / 2f, -_currentBitmap.Height / 2f));
+            SKMatrix.PostConcat(ref matrix, SKMatrix.CreateScale(_zoomScale, _zoomScale));
+            SKMatrix.PostConcat(ref matrix, SKMatrix.CreateRotationDegrees(_rotationDegrees));
+            SKMatrix.PostConcat(ref matrix, SKMatrix.CreateTranslation(_panOffset.X, _panOffset.Y));
+            SKMatrix.PostConcat(ref matrix, SKMatrix.CreateTranslation(_lastCanvasInfo.Width / 2f, _lastCanvasInfo.Height / 2f));
 
-            SKMatrix.PostConcat(ref matrix, SKMatrix.CreateTranslation(initialOffsetX + _panOffset.X, initialOffsetY + _panOffset.Y));
-            SKMatrix.PostConcat(ref matrix, SKMatrix.CreateScale(_zoomScale, _zoomScale, info.Width / 2f, info.Height / 2f));
-            SKMatrix.PostConcat(ref matrix, SKMatrix.CreateRotationDegrees(_rotationDegrees, info.Width / 2f, info.Height / 2f));
-
-            return matrix;
+            // We need the inverse to go from screen to image.
+            if (!matrix.TryInvert(out var invertedMatrix))
+            {
+                return SKMatrix.Identity;
+            }
+            return invertedMatrix;
         }
 
         private SKPoint? ScreenToImageCoordinates(SKPoint screenPoint)
         {
             if (_currentBitmap == null) return null;
 
-            var matrix = GetImageToScreenMatrix(_lastCanvasInfo);
-
-            if (!matrix.TryInvert(out var invertedMatrix)) return null;
-
+            var invertedMatrix = GetScreenToImageMatrix();
             SKPoint imagePixelPoint = invertedMatrix.MapPoint(screenPoint);
 
-            if (imagePixelPoint.X < 0 || imagePixelPoint.X > _currentBitmap.Width || imagePixelPoint.Y < 0 || imagePixelPoint.Y > _currentBitmap.Height)
-            {
-                return null;
-            }
-
+            // The result gives pixel coordinates on the original bitmap.
+            // We need to convert this to our relative (0.0 to 1.0) system.
             return new SKPoint(imagePixelPoint.X / _currentBitmap.Width, imagePixelPoint.Y / _currentBitmap.Height);
         }
 
@@ -483,10 +503,13 @@ namespace MyUserApp.ViewModels
             for (int i = CurrentAnnotations.Count - 1; i >= 0; i--)
             {
                 var annotation = CurrentAnnotations[i];
-                double hitRadius = annotation.Radius + (5 / (_currentBitmap.Width * _zoomScale));
+                // Check distance in the relative coordinate system.
                 double dist = Math.Sqrt(Math.Pow(relativePoint.X - annotation.CenterX, 2) + Math.Pow(relativePoint.Y - annotation.CenterY, 2));
 
-                if (dist <= hitRadius)
+                // Define a slightly more generous hit radius in relative terms.
+                double relativeHitRadius = annotation.Radius + (5 / (_currentBitmap.Width * _zoomScale));
+
+                if (dist <= relativeHitRadius)
                 {
                     return annotation;
                 }
