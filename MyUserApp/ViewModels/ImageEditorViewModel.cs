@@ -2,81 +2,76 @@
 using MyUserApp.Models;
 using MyUserApp.Services;
 using MyUserApp.ViewModels.Commands;
+using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Windows;
-using System.Windows.Data;
 using System.Windows.Input;
 
 namespace MyUserApp.ViewModels
 {
     /// <summary>
-    /// ViewModel for the Image Editor that works with the simplified direct canvas approach.
-    /// No complex converters needed - just straightforward data binding and commands.
+    /// ViewModel for the SkiaSharp-based Image Editor.
+    /// This class manages all the state and logic for image transformations (pan, zoom, rotate),
+    /// annotation data, undo/redo commands, and rendering the final image.
     /// </summary>
-    public class ImageEditorViewModel : BaseViewModel
+    public class ImageEditorViewModel : BaseViewModel, IDisposable
     {
-        private readonly InspectionReportModel _report;
-        private readonly IAnnotationService _annotationService;
-        private readonly ImageExportService _exportService;
+        #region Private Fields
+        private SKBitmap _currentBitmap;
         private readonly Stack<IUndoableCommand> _undoStack = new Stack<IUndoableCommand>();
         private readonly Stack<IUndoableCommand> _redoStack = new Stack<IUndoableCommand>();
         private readonly Dictionary<string, ObservableCollection<AnnotationModel>> _sessionAnnotations = new Dictionary<string, ObservableCollection<AnnotationModel>>();
 
-        // Basic Properties
+        private enum InteractionMode { None, Drawing, Panning }
+        private InteractionMode _currentMode = InteractionMode.None;
+        private SKPoint _panStartPoint;
+        private SKPoint _drawStartPoint;
+        private AnnotationModel _previewAnnotation;
+        private readonly InspectionReportModel _report;
+
+        // Transformation state
+        private float _zoomScale = 1.0f;
+        private SKPoint _panOffset = SKPoint.Empty;
+        private float _rotationDegrees = 0f;
+        private SKImageInfo _lastCanvasInfo; // Store canvas size for coordinate calculations
+        #endregion
+
+        #region Public Properties
         public string ProjectName => _report.ProjectName;
         public ObservableCollection<string> ImageThumbnails { get; }
-        public ObservableCollection<AnnotationModel> CurrentAnnotations { get; private set; } = new ObservableCollection<AnnotationModel>();
-        public ICollectionView FilteredAnnotations { get; private set; }
+        public ObservableCollection<AnnotationModel> CurrentAnnotations { get; private set; }
 
-        // Selected Image Property
         private string _selectedImage;
         public string SelectedImage
         {
             get => _selectedImage;
             set
             {
-                // ===================================================================
-                // ==               FIX FOR ISOLATING ANNOTATIONS (Bug #1)          ==
-                // ===================================================================
-                // BEFORE changing the image, we save the current annotations to our
-                // session dictionary. This ensures that work on the previous image is kept.
-                if (!string.IsNullOrEmpty(_selectedImage) && CurrentAnnotations != null)
-                {
-                    _sessionAnnotations[_selectedImage] = CurrentAnnotations;
-                }
-
+                if (_selectedImage == value) return;
                 _selectedImage = value;
                 OnPropertyChanged();
-
-                // Now, load the annotations specifically for the newly selected image.
-                LoadAnnotationsForCurrentImage();
-                // ===================================================================
+                LoadImageForEditing();
             }
         }
 
-        // Selected Annotation Property
         private AnnotationModel _selectedAnnotation;
         public AnnotationModel SelectedAnnotation
         {
             get => _selectedAnnotation;
-            set
+            private set
             {
-                // Deselect previous annotation
-                if (_selectedAnnotation != null)
-                    _selectedAnnotation.IsSelected = false;
-
+                if (_selectedAnnotation != null) _selectedAnnotation.IsSelected = false;
                 _selectedAnnotation = value;
-
-                // Select new annotation
-                if (_selectedAnnotation != null)
-                    _selectedAnnotation.IsSelected = true;
+                if (_selectedAnnotation != null) _selectedAnnotation.IsSelected = true;
 
                 OnPropertyChanged();
                 ((RelayCommand)DeleteAnnotationCommand).RaiseCanExecuteChanged();
+                InvalidateCanvas();
             }
         }
 
@@ -85,58 +80,23 @@ namespace MyUserApp.ViewModels
         public bool ShowInspectorAnnotations
         {
             get => _showInspectorAnnotations;
-            set
-            {
-                _showInspectorAnnotations = value;
-                OnPropertyChanged();
-                // We refresh the view directly from the view itself now, this is kept for compatibility
-                FilteredAnnotations?.Refresh();
-            }
+            set { _showInspectorAnnotations = value; OnPropertyChanged(); InvalidateCanvas(); }
         }
 
         private bool _showVerifierAnnotations = true;
         public bool ShowVerifierAnnotations
         {
             get => _showVerifierAnnotations;
-            set
-            {
-                _showVerifierAnnotations = value;
-                OnPropertyChanged();
-                FilteredAnnotations?.Refresh();
-            }
+            set { _showVerifierAnnotations = value; OnPropertyChanged(); InvalidateCanvas(); }
         }
 
         private bool _showAiAnnotations = true;
         public bool ShowAiAnnotations
         {
             get => _showAiAnnotations;
-            set
-            {
-                _showAiAnnotations = value;
-                OnPropertyChanged();
-                FilteredAnnotations?.Refresh();
-            }
+            set { _showAiAnnotations = value; OnPropertyChanged(); InvalidateCanvas(); }
         }
         #endregion
-
-        #region Transformation Properties
-        private double _zoomScale = 1.0;
-        public double ZoomScale { get => _zoomScale; set { _zoomScale = value; OnPropertyChanged(); } }
-
-        private double _panX = 0;
-        public double PanX { get => _panX; set { _panX = value; OnPropertyChanged(); } }
-
-        private double _panY = 0;
-        public double PanY { get => _panY; set { _panY = value; OnPropertyChanged(); } }
-
-        private Point _transformOrigin = new Point(0.5, 0.5);
-        public Point TransformOrigin { get => _transformOrigin; set { _transformOrigin = value; OnPropertyChanged(); } }
-
-        private double _rotationAngle = 0;
-        public double RotationAngle { get => _rotationAngle; set { _rotationAngle = value; OnPropertyChanged(); } }
-
-        private double _brightness = 1.0;
-        public double Brightness { get => _brightness; set { _brightness = value; OnPropertyChanged(); } }
         #endregion
 
         #region Commands
@@ -148,275 +108,395 @@ namespace MyUserApp.ViewModels
         public ICommand FinishEditingCommand { get; }
         public ICommand RotateLeftCommand { get; }
         public ICommand RotateRightCommand { get; }
-        public ICommand SwitchImageCommand { get; }
         #endregion
 
+        #region Events
+        public event Action RequestCanvasInvalidation;
         public event Action OnFinished;
+        #endregion
 
-        /// <summary>
-        /// Initialize the ViewModel with the inspection report and current user.
-        /// </summary>
+        #region Constructor and Initialization
         public ImageEditorViewModel(InspectionReportModel report, UserModel user)
         {
             _report = report ?? throw new ArgumentNullException(nameof(report));
-            _annotationService = new MockAnnotationService();
-            _exportService = new ImageExportService();
-
-            // Set up image thumbnails
             ImageThumbnails = new ObservableCollection<string>(report.ImagePaths);
 
-            // Initialize commands
-            UndoCommand = new RelayCommand(Undo, _ => CanUndo());
-            RedoCommand = new RelayCommand(Redo, _ => CanRedo());
-            DeleteAnnotationCommand = new RelayCommand(DeleteSelectedAnnotation, _ => CanDeleteAnnotation());
+            UndoCommand = new RelayCommand(Undo, CanUndo);
+            RedoCommand = new RelayCommand(Redo, CanRedo);
+
+            // ===================================================================
+            // ==     CORRECTION: Changed lambda from () to _ to match Predicate    ==
+            // ===================================================================
+            DeleteAnnotationCommand = new RelayCommand(DeleteSelectedAnnotation, _ => SelectedAnnotation != null);
+
             ResetViewCommand = new RelayCommand(ResetView);
-            RunAiAnalysisCommand = new RelayCommand(async _ => await RunAiAnalysis(), _ => CanRunAiAnalysis());
-            FinishEditingCommand = new RelayCommand(async _ => await FinishEditing());
+            RunAiAnalysisCommand = new RelayCommand(async _ => await RunAiAnalysis());
+            FinishEditingCommand = new RelayCommand(FinishEditing);
             RotateLeftCommand = new RelayCommand(_ => Rotate(-90));
             RotateRightCommand = new RelayCommand(_ => Rotate(90));
-            SwitchImageCommand = new RelayCommand(imagePath => SelectedImage = imagePath as string);
 
-            // Select the first image
-            SelectedImage = ImageThumbnails.FirstOrDefault();
-        }
-
-        /// <summary>
-        /// Create and execute a command to add a new annotation.
-        /// This method is called from the View when the user finishes drawing a circle.
-        /// </summary>
-        public void CreateAndExecuteAddAnnotation(double centerX, double centerY, double radius)
-        {
-            var newAnnotation = new AnnotationModel
+            if (ImageThumbnails.Any())
             {
-                Author = AuthorType.Inspector,
-                CenterX = centerX,
-                CenterY = centerY,
-                Radius = radius
-            };
-            var command = new AddAnnotationCommand(CurrentAnnotations, newAnnotation);
-            ExecuteCommand(command);
-        }
-
-        /// <summary>
-        /// Select an annotation (or deselect all if null is passed).
-        /// </summary>
-        public void SelectAnnotation(AnnotationModel annotation)
-        {
-            SelectedAnnotation = annotation;
-        }
-
-        /// <summary>
-        /// Check if AI analysis can be run (requires a selected image).
-        /// </summary>
-        private bool CanRunAiAnalysis() => !string.IsNullOrEmpty(SelectedImage);
-
-        /// <summary>
-        /// Run AI analysis on the current image to detect potential issues.
-        /// </summary>
-        private async System.Threading.Tasks.Task RunAiAnalysis()
-        {
-            var aiResults = await _annotationService.GetAnnotationsAsync(SelectedImage);
-            if (aiResults.Any())
-            {
-                foreach (var annotation in aiResults)
-                {
-                    // Only add if not already present
-                    if (!CurrentAnnotations.Any(a => System.Math.Abs(a.CenterX - annotation.CenterX) < 0.01 &&
-                                                     System.Math.Abs(a.CenterY - annotation.CenterY) < 0.01))
-                    {
-                        ExecuteCommand(new AddAnnotationCommand(CurrentAnnotations, annotation));
-                    }
-                }
-            }
-            else
-            {
-                MessageBox.Show("AI analysis complete. No issues found.", "AI Analysis", MessageBoxButton.OK, MessageBoxImage.Information);
+                SelectedImage = ImageThumbnails.First();
             }
         }
 
-        /// <summary>
-        /// Finish editing and export the annotated images.
-        /// </summary>
-        private async System.Threading.Tasks.Task FinishEditing()
+        private void LoadImageForEditing()
         {
-            // Save current annotations before finishing
-            if (!string.IsNullOrEmpty(SelectedImage) && CurrentAnnotations != null)
+            _currentBitmap?.Dispose();
+            if (string.IsNullOrEmpty(SelectedImage) || !File.Exists(SelectedImage))
             {
-                _sessionAnnotations[SelectedImage] = CurrentAnnotations;
+                _currentBitmap = null;
+                InvalidateCanvas();
+                return;
             }
 
-            MessageBox.Show("Exporting report images...", "Exporting", MessageBoxButton.OK, MessageBoxImage.Information);
-            string outputFolder = await _exportService.ExportImagesAsync(_report, _sessionAnnotations);
-            MessageBox.Show($"Export complete! Images saved to:\n{outputFolder}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-            OnFinished?.Invoke();
-        }
+            _currentBitmap = SKBitmap.Decode(SelectedImage);
 
-        /// <summary>
-        /// Set the transform origin point for zoom operations.
-        /// </summary>
-        public void SetTransformOrigin(Point origin) => TransformOrigin = origin;
-
-        /// <summary>
-        /// Adjust the zoom scale within reasonable limits.
-        /// </summary>
-        public void AdjustZoom(double factor) => ZoomScale = System.Math.Max(0.1, System.Math.Min(ZoomScale * factor, 10.0));
-
-        /// <summary>
-        /// Adjust the pan offset for image navigation.
-        /// </summary>
-        public void AdjustPan(double deltaX, double deltaY)
-        {
-            PanX += deltaX / ZoomScale;
-            PanY += deltaY / ZoomScale;
-        }
-
-        /// <summary>
-        /// Rotate the image by the specified angle.
-        /// </summary>
-        private void Rotate(double angle)
-        {
-            ExecuteCommand(new ChangePropertyValueCommand<double>(this, nameof(RotationAngle), RotationAngle, RotationAngle + angle));
-        }
-
-        /// <summary>
-        /// Filter annotations based on current visibility settings.
-        /// </summary>
-        private bool ApplyAnnotationFilter(object item)
-        {
-            if (item is AnnotationModel annotation)
-            {
-                return annotation.Author switch
-                {
-                    AuthorType.Inspector => ShowInspectorAnnotations,
-                    AuthorType.Verifier => ShowVerifierAnnotations,
-                    AuthorType.AI => ShowAiAnnotations,
-                    _ => true
-                };
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Reset all view transformations to default values.
-        /// </summary>
-        private void ResetView(object obj)
-        {
-            if (System.Math.Abs(RotationAngle) > 0.01)
-            {
-                ExecuteCommand(new ChangePropertyValueCommand<double>(this, nameof(RotationAngle), RotationAngle, 0));
-            }
-            Brightness = 1.0;
-            ZoomScale = 1.0;
-            PanX = 0;
-            PanY = 0;
-        }
-
-        /// <summary>
-        /// Load annotations for the currently selected image.
-        /// </summary>
-        private void LoadAnnotationsForCurrentImage()
-        {
-            // ===================================================================
-            // ==       FIX FOR ISOLATING ANNOTATIONS (Bug #1) - Part 2         ==
-            // ===================================================================
-            // This logic ensures that we either load existing annotations for an
-            // image or create a new empty set if it's the first time we're
-            // viewing this image in this session.
-
-            if (SelectedImage == null) return;
-
-            // Try to get existing annotations from our session dictionary.
             if (_sessionAnnotations.TryGetValue(SelectedImage, out var existingAnnotations))
             {
                 CurrentAnnotations = existingAnnotations;
             }
             else
             {
-                // If no annotations exist for this image path, create a new list...
                 CurrentAnnotations = new ObservableCollection<AnnotationModel>();
-                // ...and add it to the dictionary for future use.
                 _sessionAnnotations[SelectedImage] = CurrentAnnotations;
             }
-            // ===================================================================
 
-            // Set up filtered view (this is for XAML binding if using CollectionViewSource)
-            FilteredAnnotations = CollectionViewSource.GetDefaultView(CurrentAnnotations);
-            FilteredAnnotations.Filter = ApplyAnnotationFilter;
-
-            // Notify UI of changes to the main collection and the filtered view.
-            OnPropertyChanged(nameof(CurrentAnnotations));
-            OnPropertyChanged(nameof(FilteredAnnotations));
-
-            // A new image has been loaded, so we should clear the undo/redo history
-            // as those actions applied to the previous image.
-            _undoStack.Clear();
-            _redoStack.Clear();
-            ((RelayCommand)UndoCommand).RaiseCanExecuteChanged();
-            ((RelayCommand)RedoCommand).RaiseCanExecuteChanged();
-
-            // Clear any active selection from the previous image.
             SelectedAnnotation = null;
-
-            // Reset zoom/pan/rotation for the new image.
+            ClearHistory();
             ResetView(null);
+            OnPropertyChanged(nameof(CurrentAnnotations));
+        }
+        #endregion
+
+        #region Drawing and Rendering
+        public void Draw(SKSurface surface, SKImageInfo info)
+        {
+            _lastCanvasInfo = info; // Cache canvas info for coordinate transforms
+            var canvas = surface.Canvas;
+            canvas.Clear(SKColors.Black);
+
+            if (_currentBitmap == null) return;
+
+            canvas.Save();
+
+            var matrix = GetImageToScreenMatrix(info);
+            canvas.SetMatrix(matrix);
+
+            canvas.DrawBitmap(_currentBitmap, 0, 0);
+
+            using (var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke })
+            {
+                foreach (var annotation in CurrentAnnotations.Where(ShouldShowAnnotation))
+                {
+                    paint.Color = GetAnnotationSKColor(annotation);
+                    paint.StrokeWidth = annotation.IsSelected ? (4 / _zoomScale) : (2 / _zoomScale);
+                    float absCenterX = (float)(annotation.CenterX * _currentBitmap.Width);
+                    float absCenterY = (float)(annotation.CenterY * _currentBitmap.Height);
+                    float absRadius = (float)(annotation.Radius * _currentBitmap.Width);
+                    canvas.DrawOval(absCenterX, absCenterY, absRadius, absRadius, paint);
+                }
+
+                if (_previewAnnotation != null)
+                {
+                    paint.Color = SKColors.White;
+                    paint.StrokeWidth = 2 / _zoomScale;
+                    paint.PathEffect = SKPathEffect.CreateDash(new float[] { 10 / _zoomScale, 10 / _zoomScale }, 0);
+                    float absCenterX = (float)(_previewAnnotation.CenterX * _currentBitmap.Width);
+                    float absCenterY = (float)(_previewAnnotation.CenterY * _currentBitmap.Height);
+                    float absRadius = (float)(_previewAnnotation.Radius * _currentBitmap.Width);
+                    canvas.DrawOval(absCenterX, absCenterY, absRadius, absRadius, paint);
+                    paint.PathEffect = null;
+                }
+            }
+
+            canvas.Restore();
         }
 
-        #region Undo/Redo and Command Execution
-        private bool CanDeleteAnnotation() => SelectedAnnotation != null;
+        private void InvalidateCanvas() => RequestCanvasInvalidation?.Invoke();
+        #endregion
 
-        private void DeleteSelectedAnnotation(object obj)
+        #region User Interaction Logic
+        public void Zoom(float factor, float anchorX, float anchorY)
         {
-            if (CanDeleteAnnotation())
-            {
-                ExecuteCommand(new DeleteAnnotationCommand(CurrentAnnotations, SelectedAnnotation));
+            float oldScale = _zoomScale;
+            _zoomScale = Math.Max(0.1f, Math.Min(_zoomScale * factor, 10.0f));
+            _panOffset.X = anchorX - (_zoomScale / oldScale) * (anchorX - _panOffset.X);
+            _panOffset.Y = anchorY - (_zoomScale / oldScale) * (anchorY - _panOffset.Y);
+            InvalidateCanvas();
+        }
 
-                // ===================================================================
-                // ==                 FIX FOR DELETION BUG (Bug #13)                ==
-                // ===================================================================
-                // After deleting, we must clear the selection. This prevents a
-                // "ghost" selection where the UI might think an annotation is still
-                // selected even though it's gone from the collection.
-                SelectedAnnotation = null;
-                // ===================================================================
+        public void StartPan(float x, float y)
+        {
+            _currentMode = InteractionMode.Panning;
+            _panStartPoint = new SKPoint(x - _panOffset.X, y - _panOffset.Y);
+        }
+
+        public void StartDrawing(float x, float y)
+        {
+            SKPoint? imagePoint = ScreenToImageCoordinates(new SKPoint(x, y));
+            if (imagePoint == null) return;
+
+            AnnotationModel clickedAnnotation = CheckForAnnotationHit(imagePoint.Value);
+            if (clickedAnnotation != null)
+            {
+                SelectedAnnotation = clickedAnnotation;
+                _currentMode = InteractionMode.None;
+                return;
+            }
+
+            SelectedAnnotation = null;
+            _currentMode = InteractionMode.Drawing;
+            _drawStartPoint = imagePoint.Value;
+            _previewAnnotation = new AnnotationModel
+            {
+                Author = AuthorType.Inspector,
+                CenterX = _drawStartPoint.X,
+                CenterY = _drawStartPoint.Y,
+                Radius = 0
+            };
+        }
+
+        public void UpdateInteraction(float x, float y)
+        {
+            switch (_currentMode)
+            {
+                case InteractionMode.Panning:
+                    _panOffset = new SKPoint(x - _panStartPoint.X, y - _panStartPoint.Y);
+                    InvalidateCanvas();
+                    break;
+                case InteractionMode.Drawing:
+                    SKPoint? currentImagePoint = ScreenToImageCoordinates(new SKPoint(x, y));
+                    if (currentImagePoint == null || _previewAnnotation == null) return;
+                    double dx = currentImagePoint.Value.X - _drawStartPoint.X;
+                    double dy = currentImagePoint.Value.Y - _drawStartPoint.Y;
+                    _previewAnnotation.Radius = Math.Sqrt(dx * dx + dy * dy);
+                    InvalidateCanvas();
+                    break;
             }
         }
 
-        private bool CanUndo() => _undoStack.Any();
-        private bool CanRedo() => _redoStack.Any();
+        public void EndInteraction(float x, float y)
+        {
+            if (_currentMode == InteractionMode.Drawing && _previewAnnotation != null)
+            {
+                if (_currentBitmap != null && _previewAnnotation.Radius * _currentBitmap.Width > 5)
+                {
+                    ExecuteCommand(new AddAnnotationCommand(CurrentAnnotations, _previewAnnotation));
+                    SelectedAnnotation = _previewAnnotation;
+                }
+            }
+            _currentMode = InteractionMode.None;
+            _previewAnnotation = null;
+            InvalidateCanvas();
+        }
+        #endregion
 
+        #region Command Methods
+        private void ResetView(object _ = null)
+        {
+            _zoomScale = 1.0f;
+            _panOffset = SKPoint.Empty;
+            _rotationDegrees = 0f;
+            InvalidateCanvas();
+        }
+
+        private void Rotate(float angle)
+        {
+            _rotationDegrees = (_rotationDegrees + angle) % 360;
+            InvalidateCanvas();
+        }
+
+        private async System.Threading.Tasks.Task RunAiAnalysis()
+        {
+            var mockService = new MockAnnotationService();
+            var aiResults = await mockService.GetAnnotationsAsync(SelectedImage);
+            if (aiResults.Any())
+            {
+                foreach (var annotation in aiResults)
+                {
+                    ExecuteCommand(new AddAnnotationCommand(CurrentAnnotations, annotation));
+                }
+            }
+            else
+            {
+                MessageBox.Show("AI analysis complete. No issues found.", "AI Analysis");
+            }
+        }
+
+        private void DeleteSelectedAnnotation(object _ = null)
+        {
+            if (SelectedAnnotation == null) return;
+            ExecuteCommand(new DeleteAnnotationCommand(CurrentAnnotations, SelectedAnnotation));
+            SelectedAnnotation = null;
+        }
+
+        private void FinishEditing(object _ = null)
+        {
+            if (_currentBitmap == null) return;
+
+            string sanitizedProjectName = string.Join("_", _report.ProjectName.Split(Path.GetInvalidFileNameChars()));
+            string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+            string outputDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Exported Reports", $"{sanitizedProjectName}_{timestamp}");
+            Directory.CreateDirectory(outputDirectory);
+            string outputFilePath = Path.Combine(outputDirectory, Path.GetFileNameWithoutExtension(SelectedImage) + "_annotated.jpg");
+
+            using (var exportSurface = SKSurface.Create(new SKImageInfo(_currentBitmap.Width, _currentBitmap.Height)))
+            {
+                var canvas = exportSurface.Canvas;
+                canvas.DrawBitmap(_currentBitmap, 0, 0);
+
+                using (var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke })
+                {
+                    foreach (var annotation in CurrentAnnotations)
+                    {
+                        paint.Color = GetAnnotationSKColor(annotation);
+                        paint.StrokeWidth = annotation.IsSelected ? 8 : 4;
+                        float absCenterX = (float)(annotation.CenterX * _currentBitmap.Width);
+                        float absCenterY = (float)(annotation.CenterY * _currentBitmap.Height);
+                        float absRadius = (float)(annotation.Radius * _currentBitmap.Width);
+                        canvas.DrawOval(absCenterX, absCenterY, absRadius, absRadius, paint);
+                    }
+                }
+
+                using (var image = exportSurface.Snapshot())
+                using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 95))
+                using (var stream = File.OpenWrite(outputFilePath))
+                {
+                    data.SaveTo(stream);
+                }
+            }
+
+            MessageBox.Show($"Export complete! Image saved to:\n{outputFilePath}", "Success");
+            OnFinished?.Invoke();
+        }
+        #endregion
+
+        #region Undo/Redo Logic
         private void ExecuteCommand(IUndoableCommand command)
         {
             command.Execute();
             _undoStack.Push(command);
             _redoStack.Clear();
+            InvalidateCanvas();
+            UpdateCommandStates();
+        }
+
+        private void Undo(object _ = null)
+        {
+            if (!_undoStack.Any()) return;
+            var command = _undoStack.Pop();
+            command.UnExecute();
+            _redoStack.Push(command);
+            InvalidateCanvas();
+            UpdateCommandStates();
+        }
+
+        private void Redo(object _ = null)
+        {
+            if (!_redoStack.Any()) return;
+            var command = _redoStack.Pop();
+            command.Execute();
+            _undoStack.Push(command);
+            InvalidateCanvas();
+            UpdateCommandStates();
+        }
+
+        private bool CanUndo(object _ = null) => _undoStack.Any();
+        private bool CanRedo(object _ = null) => _redoStack.Any();
+        private void ClearHistory()
+        {
+            _undoStack.Clear();
+            _redoStack.Clear();
+            UpdateCommandStates();
+        }
+
+        private void UpdateCommandStates()
+        {
             ((RelayCommand)UndoCommand).RaiseCanExecuteChanged();
             ((RelayCommand)RedoCommand).RaiseCanExecuteChanged();
         }
+        #endregion
 
-        private void Undo(object obj)
+        #region Helper Methods
+        private bool ShouldShowAnnotation(AnnotationModel annotation)
         {
-            if (_undoStack.Any())
+            return annotation.Author switch
             {
-                var command = _undoStack.Pop();
-                command.UnExecute();
-                _redoStack.Push(command);
-                SelectedAnnotation = null;
-                ((RelayCommand)UndoCommand).RaiseCanExecuteChanged();
-                ((RelayCommand)RedoCommand).RaiseCanExecuteChanged();
-            }
+                AuthorType.Inspector => ShowInspectorAnnotations,
+                AuthorType.Verifier => ShowVerifierAnnotations,
+                AuthorType.AI => ShowAiAnnotations,
+                _ => true
+            };
         }
 
-        private void Redo(object obj)
+        private SKColor GetAnnotationSKColor(AnnotationModel annotation)
         {
-            if (_redoStack.Any())
+            if (annotation.IsSelected) return SKColors.LimeGreen;
+            return annotation.Author switch
             {
-                var command = _redoStack.Pop();
-                command.Execute();
-                _undoStack.Push(command);
-                SelectedAnnotation = null;
-                ((RelayCommand)UndoCommand).RaiseCanExecuteChanged();
-                ((RelayCommand)RedoCommand).RaiseCanExecuteChanged();
+                AuthorType.Inspector => SKColors.DodgerBlue,
+                AuthorType.Verifier => SKColors.Yellow,
+                AuthorType.AI => SKColors.Red,
+                _ => SKColors.White
+            };
+        }
+
+        private SKMatrix GetImageToScreenMatrix(SKImageInfo info)
+        {
+            if (_currentBitmap == null) return SKMatrix.Identity;
+
+            var matrix = SKMatrix.CreateIdentity();
+            float initialOffsetX = (info.Width - _currentBitmap.Width) / 2f;
+            float initialOffsetY = (info.Height - _currentBitmap.Height) / 2f;
+
+            SKMatrix.PostConcat(ref matrix, SKMatrix.CreateTranslation(initialOffsetX + _panOffset.X, initialOffsetY + _panOffset.Y));
+            SKMatrix.PostConcat(ref matrix, SKMatrix.CreateScale(_zoomScale, _zoomScale, info.Width / 2f, info.Height / 2f));
+            SKMatrix.PostConcat(ref matrix, SKMatrix.CreateRotationDegrees(_rotationDegrees, info.Width / 2f, info.Height / 2f));
+
+            return matrix;
+        }
+
+        private SKPoint? ScreenToImageCoordinates(SKPoint screenPoint)
+        {
+            if (_currentBitmap == null) return null;
+
+            var matrix = GetImageToScreenMatrix(_lastCanvasInfo);
+
+            if (!matrix.TryInvert(out var invertedMatrix)) return null;
+
+            SKPoint imagePixelPoint = invertedMatrix.MapPoint(screenPoint);
+
+            if (imagePixelPoint.X < 0 || imagePixelPoint.X > _currentBitmap.Width || imagePixelPoint.Y < 0 || imagePixelPoint.Y > _currentBitmap.Height)
+            {
+                return null;
             }
+
+            return new SKPoint(imagePixelPoint.X / _currentBitmap.Width, imagePixelPoint.Y / _currentBitmap.Height);
+        }
+
+        private AnnotationModel CheckForAnnotationHit(SKPoint relativePoint)
+        {
+            if (_currentBitmap == null) return null;
+
+            for (int i = CurrentAnnotations.Count - 1; i >= 0; i--)
+            {
+                var annotation = CurrentAnnotations[i];
+                double hitRadius = annotation.Radius + (5 / (_currentBitmap.Width * _zoomScale));
+                double dist = Math.Sqrt(Math.Pow(relativePoint.X - annotation.CenterX, 2) + Math.Pow(relativePoint.Y - annotation.CenterY, 2));
+
+                if (dist <= hitRadius)
+                {
+                    return annotation;
+                }
+            }
+            return null;
+        }
+
+        public void Dispose()
+        {
+            _currentBitmap?.Dispose();
         }
         #endregion
     }
