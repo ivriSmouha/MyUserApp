@@ -1,4 +1,5 @@
-﻿using MyUserApp.Models;
+﻿// File: MyUserApp/Services/ReportService.cs
+using MyUserApp.Models;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -21,7 +22,7 @@ namespace MyUserApp.Services
             if (File.Exists(FilePath))
             {
                 var json = File.ReadAllText(FilePath);
-                _allReports = JsonSerializer.Deserialize<List<InspectionReportModel>>(json);
+                _allReports = JsonSerializer.Deserialize<List<InspectionReportModel>>(json) ?? new List<InspectionReportModel>();
             }
             else
             {
@@ -39,6 +40,24 @@ namespace MyUserApp.Services
         {
             _allReports.Add(report);
             SaveReports();
+        }
+
+        
+        /// <summary>
+        /// Finds an existing report by its ID and replaces it with the updated version.
+        /// This is crucial for saving annotations.
+        /// </summary>
+        public void UpdateReport(InspectionReportModel updatedReport)
+        {
+            // Find the index of the old report in our list.
+            int index = _allReports.FindIndex(r => r.ReportId == updatedReport.ReportId);
+
+            if (index != -1)
+            {
+                // If found, replace the old object with the new one.
+                _allReports[index] = updatedReport;
+                SaveReports();
+            }
         }
 
         public List<InspectionReportModel> GetReportsForUser(string username)

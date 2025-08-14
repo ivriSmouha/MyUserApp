@@ -9,19 +9,19 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 
 namespace MyUserApp.ViewModels
 {
-    /// <summary>
-    /// ViewModel for the SkiaSharp-based Image Editor.
-    /// This class manages all the state and logic for image transformations (pan, zoom, rotate),
-    /// annotation data, undo/redo commands, and rendering the final image.
-    /// </summary>
     public class ImageEditorViewModel : BaseViewModel, IDisposable
     {
         #region Private Fields
+        // ... (other private fields are unchanged)
+        private readonly InspectionReportModel _report;
+        private readonly AuthorType _currentUserRole; // NEW: Store the user's role for this session.
+
         private SKBitmap _currentBitmap;
         private readonly Stack<IUndoableCommand> _undoStack = new Stack<IUndoableCommand>();
         private readonly Stack<IUndoableCommand> _redoStack = new Stack<IUndoableCommand>();
@@ -32,15 +32,14 @@ namespace MyUserApp.ViewModels
         private SKPoint _panStartPoint;
         private SKPoint _drawStartPoint;
         private AnnotationModel _previewAnnotation;
-        private readonly InspectionReportModel _report;
 
-        // Transformation state
         private float _zoomScale = 1.0f;
         private SKPoint _panOffset = SKPoint.Empty;
         private float _rotationDegrees = 0f;
-        private SKImageInfo _lastCanvasInfo; // Store canvas size for coordinate calculations
+        private SKImageInfo _lastCanvasInfo;
         #endregion
 
+        // Properties and other sections are mostly unchanged...
         #region Public Properties
         public string ProjectName => _report.ProjectName;
         public ObservableCollection<string> ImageThumbnails { get; }
@@ -55,7 +54,7 @@ namespace MyUserApp.ViewModels
                 if (_selectedImage == value) return;
                 _selectedImage = value;
                 OnPropertyChanged();
-                LoadImageForEditing();
+                _ = LoadImageForEditingAsync();
             }
         }
 
@@ -77,25 +76,11 @@ namespace MyUserApp.ViewModels
 
         #region Filter Properties
         private bool _showInspectorAnnotations = true;
-        public bool ShowInspectorAnnotations
-        {
-            get => _showInspectorAnnotations;
-            set { _showInspectorAnnotations = value; OnPropertyChanged(); InvalidateCanvas(); }
-        }
-
+        public bool ShowInspectorAnnotations { get => _showInspectorAnnotations; set { _showInspectorAnnotations = value; OnPropertyChanged(); InvalidateCanvas(); } }
         private bool _showVerifierAnnotations = true;
-        public bool ShowVerifierAnnotations
-        {
-            get => _showVerifierAnnotations;
-            set { _showVerifierAnnotations = value; OnPropertyChanged(); InvalidateCanvas(); }
-        }
-
+        public bool ShowVerifierAnnotations { get => _showVerifierAnnotations; set { _showVerifierAnnotations = value; OnPropertyChanged(); InvalidateCanvas(); } }
         private bool _showAiAnnotations = true;
-        public bool ShowAiAnnotations
-        {
-            get => _showAiAnnotations;
-            set { _showAiAnnotations = value; OnPropertyChanged(); InvalidateCanvas(); }
-        }
+        public bool ShowAiAnnotations { get => _showAiAnnotations; set { _showAiAnnotations = value; OnPropertyChanged(); InvalidateCanvas(); } }
         #endregion
         #endregion
 
@@ -108,18 +93,28 @@ namespace MyUserApp.ViewModels
         public ICommand FinishEditingCommand { get; }
         public ICommand RotateLeftCommand { get; }
         public ICommand RotateRightCommand { get; }
+        public ICommand SaveCommand { get; }
         #endregion
 
-        #region Events
         public event Action RequestCanvasInvalidation;
         public event Action OnFinished;
-        #endregion
 
-        #region Constructor and Initialization
-        public ImageEditorViewModel(InspectionReportModel report, UserModel user)
+        // ===================================================================
+        // ==    CHANGE: The constructor now accepts the user's role        ==
+        // ===================================================================
+        public ImageEditorViewModel(InspectionReportModel report, UserModel user, AuthorType role)
         {
             _report = report ?? throw new ArgumentNullException(nameof(report));
+            _currentUserRole = role; // Store the role
             ImageThumbnails = new ObservableCollection<string>(report.ImagePaths);
+
+            if (report.AnnotationsByImage != null)
+            {
+                foreach (var entry in report.AnnotationsByImage)
+                {
+                    _sessionAnnotations[entry.Key] = new ObservableCollection<AnnotationModel>(entry.Value);
+                }
+            }
 
             UndoCommand = new RelayCommand(Undo, CanUndo);
             RedoCommand = new RelayCommand(Redo, CanRedo);
@@ -129,14 +124,20 @@ namespace MyUserApp.ViewModels
             FinishEditingCommand = new RelayCommand(FinishEditing);
             RotateLeftCommand = new RelayCommand(_ => Rotate(-90));
             RotateRightCommand = new RelayCommand(_ => Rotate(90));
+            SaveCommand = new RelayCommand(_ => SaveAnnotations());
+        }
 
+        public async Task InitializeAsync()
+        {
             if (ImageThumbnails.Any())
             {
-                SelectedImage = ImageThumbnails.First();
+                _selectedImage = ImageThumbnails.First();
+                OnPropertyChanged(nameof(SelectedImage));
+                await LoadImageForEditingAsync();
             }
         }
 
-        private void LoadImageForEditing()
+        private async Task LoadImageForEditingAsync()
         {
             _currentBitmap?.Dispose();
             if (string.IsNullOrEmpty(SelectedImage) || !File.Exists(SelectedImage))
@@ -146,7 +147,9 @@ namespace MyUserApp.ViewModels
                 return;
             }
 
-            _currentBitmap = SKBitmap.Decode(SelectedImage);
+            var newBitmap = await Task.Run(() => SKBitmap.Decode(SelectedImage));
+            _currentBitmap?.Dispose();
+            _currentBitmap = newBitmap;
 
             if (_sessionAnnotations.TryGetValue(SelectedImage, out var existingAnnotations))
             {
@@ -163,9 +166,7 @@ namespace MyUserApp.ViewModels
             ResetView(null);
             OnPropertyChanged(nameof(CurrentAnnotations));
         }
-        #endregion
 
-        #region Drawing and Rendering
         public void Draw(SKSurface surface, SKImageInfo info)
         {
             var canvas = surface.Canvas;
@@ -173,7 +174,6 @@ namespace MyUserApp.ViewModels
 
             if (_currentBitmap == null) return;
 
-            // If canvas size is new or uninitialized, update it and fit the image.
             if (_lastCanvasInfo.Width != info.Width || _lastCanvasInfo.Height != info.Height)
             {
                 _lastCanvasInfo = info;
@@ -182,27 +182,12 @@ namespace MyUserApp.ViewModels
 
             canvas.Save();
 
-            // ===================================================================
-            // ==     REVISED DRAWING LOGIC: Simple, sequential transformations   ==
-            // ===================================================================
-            // This is a more robust and standard way to handle graphics transformations.
-
-            // 1. Move the origin to the center of the canvas.
             canvas.Translate(info.Width / 2f, info.Height / 2f);
-
-            // 2. Apply user-controlled panning.
             canvas.Translate(_panOffset.X, _panOffset.Y);
-
-            // 3. Apply rotation around the current origin.
             canvas.RotateDegrees(_rotationDegrees);
-
-            // 4. Apply zoom scaling from the current origin.
             canvas.Scale(_zoomScale);
-
-            // 5. Draw the bitmap. We offset it by half its width/height to center it on the origin.
             canvas.DrawBitmap(_currentBitmap, -_currentBitmap.Width / 2f, -_currentBitmap.Height / 2f);
 
-            // --- Draw annotations relative to the centered image ---
             using (var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke })
             {
                 var annotationsToDraw = CurrentAnnotations.Where(ShouldShowAnnotation).ToList();
@@ -215,7 +200,6 @@ namespace MyUserApp.ViewModels
                     paint.StrokeWidth = isPreview || annotation.IsSelected ? (4 / _zoomScale) : (2 / _zoomScale);
                     paint.PathEffect = isPreview ? SKPathEffect.CreateDash(new float[] { 10 / _zoomScale, 10 / _zoomScale }, 0) : null;
 
-                    // Calculate annotation position relative to the image's center (0,0)
                     float circleX = (float)((annotation.CenterX - 0.5) * _currentBitmap.Width);
                     float circleY = (float)((annotation.CenterY - 0.5) * _currentBitmap.Height);
                     float circleR = (float)(annotation.Radius * _currentBitmap.Width);
@@ -225,25 +209,6 @@ namespace MyUserApp.ViewModels
             }
 
             canvas.Restore();
-        }
-
-        private void InvalidateCanvas() => RequestCanvasInvalidation?.Invoke();
-        #endregion
-
-        #region User Interaction Logic
-        public void Zoom(float factor, float anchorX, float anchorY)
-        {
-            float oldScale = _zoomScale;
-            _zoomScale = Math.Max(0.1f, Math.Min(_zoomScale * factor, 10.0f));
-            _panOffset.X = anchorX - (_zoomScale / oldScale) * (anchorX - _panOffset.X);
-            _panOffset.Y = anchorY - (_zoomScale / oldScale) * (anchorY - _panOffset.Y);
-            InvalidateCanvas();
-        }
-
-        public void StartPan(float x, float y)
-        {
-            _currentMode = InteractionMode.Panning;
-            _panStartPoint = new SKPoint(x - _panOffset.X, y - _panOffset.Y);
         }
 
         public void StartDrawing(float x, float y)
@@ -262,13 +227,33 @@ namespace MyUserApp.ViewModels
             SelectedAnnotation = null;
             _currentMode = InteractionMode.Drawing;
             _drawStartPoint = imagePoint.Value;
+
+            // ===================================================================
+            // ==     CHANGE: New annotations now use the user's session role   ==
+            // ===================================================================
             _previewAnnotation = new AnnotationModel
             {
-                Author = AuthorType.Inspector,
+                Author = _currentUserRole, // Use the role passed into the constructor
                 CenterX = _drawStartPoint.X,
                 CenterY = _drawStartPoint.Y,
                 Radius = 0
             };
+        }
+
+        // --- Omitted the rest of the file for brevity, as it is unchanged ---
+        public void Zoom(float factor, float anchorX, float anchorY)
+        {
+            float oldScale = _zoomScale;
+            _zoomScale = Math.Max(0.1f, Math.Min(_zoomScale * factor, 10.0f));
+            _panOffset.X = anchorX - (_zoomScale / oldScale) * (anchorX - _panOffset.X);
+            _panOffset.Y = anchorY - (_zoomScale / oldScale) * (anchorY - _panOffset.Y);
+            InvalidateCanvas();
+        }
+
+        public void StartPan(float x, float y)
+        {
+            _currentMode = InteractionMode.Panning;
+            _panStartPoint = new SKPoint(x - _panOffset.X, y - _panOffset.Y);
         }
 
         public void UpdateInteraction(float x, float y)
@@ -304,9 +289,7 @@ namespace MyUserApp.ViewModels
             _previewAnnotation = null;
             InvalidateCanvas();
         }
-        #endregion
 
-        #region Command Methods
         private void FitImageToView()
         {
             if (_currentBitmap == null || _lastCanvasInfo.Width == 0) return;
@@ -346,16 +329,28 @@ namespace MyUserApp.ViewModels
             }
         }
 
-        private void DeleteSelectedAnnotation(object _ = null)
+        public void DeleteSelectedAnnotation(object _ = null)
         {
             if (SelectedAnnotation == null) return;
             ExecuteCommand(new DeleteAnnotationCommand(CurrentAnnotations, SelectedAnnotation));
             SelectedAnnotation = null;
         }
 
+        public void SaveAnnotations()
+        {
+            _report.AnnotationsByImage.Clear();
+            foreach (var entry in _sessionAnnotations)
+            {
+                _report.AnnotationsByImage[entry.Key] = entry.Value.ToList();
+            }
+            ReportService.Instance.UpdateReport(_report);
+        }
+
         private void FinishEditing(object _ = null)
         {
             if (_currentBitmap == null) return;
+
+            SaveAnnotations();
 
             string sanitizedProjectName = string.Join("_", _report.ProjectName.Split(Path.GetInvalidFileNameChars()));
             string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
@@ -389,12 +384,10 @@ namespace MyUserApp.ViewModels
                 }
             }
 
-            MessageBox.Show($"Export complete! Image saved to:\n{outputFilePath}", "Success");
+            MessageBox.Show($"Report saved and exported to:\n{outputDirectory}", "Success");
             OnFinished?.Invoke();
         }
-        #endregion
 
-        #region Undo/Redo Logic
         private void ExecuteCommand(IUndoableCommand command)
         {
             command.Execute();
@@ -403,7 +396,6 @@ namespace MyUserApp.ViewModels
             InvalidateCanvas();
             UpdateCommandStates();
         }
-
         private void Undo(object _ = null)
         {
             if (!_undoStack.Any()) return;
@@ -413,7 +405,6 @@ namespace MyUserApp.ViewModels
             InvalidateCanvas();
             UpdateCommandStates();
         }
-
         private void Redo(object _ = null)
         {
             if (!_redoStack.Any()) return;
@@ -423,7 +414,6 @@ namespace MyUserApp.ViewModels
             InvalidateCanvas();
             UpdateCommandStates();
         }
-
         private bool CanUndo(object _ = null) => _undoStack.Any();
         private bool CanRedo(object _ = null) => _redoStack.Any();
         private void ClearHistory()
@@ -432,15 +422,13 @@ namespace MyUserApp.ViewModels
             _redoStack.Clear();
             UpdateCommandStates();
         }
-
         private void UpdateCommandStates()
         {
             ((RelayCommand)UndoCommand).RaiseCanExecuteChanged();
             ((RelayCommand)RedoCommand).RaiseCanExecuteChanged();
         }
-        #endregion
 
-        #region Helper Methods
+        private void InvalidateCanvas() => RequestCanvasInvalidation?.Invoke();
         private bool ShouldShowAnnotation(AnnotationModel annotation)
         {
             return annotation.Author switch
@@ -451,7 +439,6 @@ namespace MyUserApp.ViewModels
                 _ => true
             };
         }
-
         private SKColor GetAnnotationSKColor(AnnotationModel annotation)
         {
             if (annotation.IsSelected) return SKColors.LimeGreen;
@@ -463,64 +450,40 @@ namespace MyUserApp.ViewModels
                 _ => SKColors.White
             };
         }
-
         private SKMatrix GetScreenToImageMatrix()
         {
             if (_currentBitmap == null || _lastCanvasInfo.Width == 0) return SKMatrix.Identity;
-
-            // This matrix represents the transformation from image coordinates to screen coordinates.
             var matrix = SKMatrix.CreateIdentity();
             SKMatrix.PostConcat(ref matrix, SKMatrix.CreateTranslation(-_currentBitmap.Width / 2f, -_currentBitmap.Height / 2f));
             SKMatrix.PostConcat(ref matrix, SKMatrix.CreateScale(_zoomScale, _zoomScale));
             SKMatrix.PostConcat(ref matrix, SKMatrix.CreateRotationDegrees(_rotationDegrees));
             SKMatrix.PostConcat(ref matrix, SKMatrix.CreateTranslation(_panOffset.X, _panOffset.Y));
             SKMatrix.PostConcat(ref matrix, SKMatrix.CreateTranslation(_lastCanvasInfo.Width / 2f, _lastCanvasInfo.Height / 2f));
-
-            // We need the inverse to go from screen to image.
-            if (!matrix.TryInvert(out var invertedMatrix))
-            {
-                return SKMatrix.Identity;
-            }
+            if (!matrix.TryInvert(out var invertedMatrix)) return SKMatrix.Identity;
             return invertedMatrix;
         }
-
         private SKPoint? ScreenToImageCoordinates(SKPoint screenPoint)
         {
             if (_currentBitmap == null) return null;
-
             var invertedMatrix = GetScreenToImageMatrix();
             SKPoint imagePixelPoint = invertedMatrix.MapPoint(screenPoint);
-
-            // The result gives pixel coordinates on the original bitmap.
-            // We need to convert this to our relative (0.0 to 1.0) system.
             return new SKPoint(imagePixelPoint.X / _currentBitmap.Width, imagePixelPoint.Y / _currentBitmap.Height);
         }
-
         private AnnotationModel CheckForAnnotationHit(SKPoint relativePoint)
         {
             if (_currentBitmap == null) return null;
-
             for (int i = CurrentAnnotations.Count - 1; i >= 0; i--)
             {
                 var annotation = CurrentAnnotations[i];
-                // Check distance in the relative coordinate system.
                 double dist = Math.Sqrt(Math.Pow(relativePoint.X - annotation.CenterX, 2) + Math.Pow(relativePoint.Y - annotation.CenterY, 2));
-
-                // Define a slightly more generous hit radius in relative terms.
                 double relativeHitRadius = annotation.Radius + (5 / (_currentBitmap.Width * _zoomScale));
-
-                if (dist <= relativeHitRadius)
-                {
-                    return annotation;
-                }
+                if (dist <= relativeHitRadius) return annotation;
             }
             return null;
         }
-
         public void Dispose()
         {
             _currentBitmap?.Dispose();
         }
-        #endregion
     }
 }

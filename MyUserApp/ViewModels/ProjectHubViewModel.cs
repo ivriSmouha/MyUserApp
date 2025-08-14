@@ -1,4 +1,4 @@
-﻿// ViewModels/ProjectHubViewModel.cs
+﻿// File: MyUserApp/ViewModels/ProjectHubViewModel.cs
 using MyUserApp.Models;
 using MyUserApp.Services;
 using System;
@@ -10,21 +10,23 @@ namespace MyUserApp.ViewModels
 {
     public class ProjectHubViewModel : BaseViewModel
     {
-        // --- NEW: A constant holding the special path to our project resource ---
-        // This is the "Pack URI" format for WPF resources.
         private const string DefaultImagePath = "pack://application:,,,/Assets/placeholder.png";
 
-        // --- Existing Properties ---
         public string WelcomeMessage { get; }
-        public ObservableCollection<InspectionReportModel> RecentProjects { get; }
+
+        // ===================================================================
+        // ==     CHANGE: The collection now holds our new display ViewModel    ==
+        // ===================================================================
+        public ObservableCollection<ProjectDisplayViewModel> RecentProjects { get; }
+
         private int _currentImageIndex;
         private string _previewImagePath;
         public string PreviewImagePath { get => _previewImagePath; private set { _previewImagePath = value; OnPropertyChanged(); } }
         private string _imageCounterText;
         public string ImageCounterText { get => _imageCounterText; private set { _imageCounterText = value; OnPropertyChanged(); } }
 
-        private InspectionReportModel _selectedProject;
-        public InspectionReportModel SelectedProject
+        private ProjectDisplayViewModel _selectedProject;
+        public ProjectDisplayViewModel SelectedProject
         {
             get => _selectedProject;
             set
@@ -33,10 +35,13 @@ namespace MyUserApp.ViewModels
                 OnPropertyChanged();
                 _currentImageIndex = 0;
                 UpdateImageDisplay();
+                ((RelayCommand)OpenProjectCommand).RaiseCanExecuteChanged();
             }
         }
 
-        // --- Commands and Events (no changes) ---
+        public ICommand OpenProjectCommand { get; }
+        public event Action<InspectionReportModel, AuthorType> OnOpenProjectRequested;
+
         public ICommand StartNewProjectCommand { get; }
         public ICommand LogoutCommand { get; }
         public ICommand NextImageCommand { get; }
@@ -49,38 +54,58 @@ namespace MyUserApp.ViewModels
         {
             _currentUser = user;
             WelcomeMessage = $"Welcome, {user.Username}!";
+
+            // ===================================================================
+            // ==     CHANGE: Convert the raw data models into our new ViewModel  ==
+            // ===================================================================
             var userProjects = ReportService.Instance.GetReportsForUser(user.Username);
-            RecentProjects = new ObservableCollection<InspectionReportModel>(userProjects);
+            // We use LINQ's 'Select' to transform each report into a ProjectDisplayViewModel,
+            // passing in the user so it can determine their role.
+            RecentProjects = new ObservableCollection<ProjectDisplayViewModel>(
+                userProjects.Select(report => new ProjectDisplayViewModel(report, user))
+            );
+            // ===================================================================
 
             NextImageCommand = new RelayCommand(ShowNextImage, _ => CanShowNextImage());
             PreviousImageCommand = new RelayCommand(ShowPreviousImage, _ => CanShowPreviousImage());
             StartNewProjectCommand = new RelayCommand(param => OnStartNewProjectRequested?.Invoke(_currentUser));
             LogoutCommand = new RelayCommand(param => OnLogoutRequested?.Invoke());
+            OpenProjectCommand = new RelayCommand(OpenSelectedProject, _ => SelectedProject != null);
 
-            // Initialize the display with the default image.
             UpdateImageDisplay();
         }
 
+        private void OpenSelectedProject(object obj)
+        {
+            if (SelectedProject != null)
+            {
+                // ===================================================================
+                // ==    CHANGE: We now pass both the report and the determined role   ==
+                // ===================================================================
+                OnOpenProjectRequested?.Invoke(SelectedProject.Report, SelectedProject.CurrentUserRole);
+            }
+        }
+
         private void ShowNextImage(object obj) { _currentImageIndex++; UpdateImageDisplay(); }
-        private bool CanShowNextImage() => _selectedProject != null && _currentImageIndex < _selectedProject.ImagePaths.Count - 1;
+        private bool CanShowNextImage() => _selectedProject != null && _selectedProject.Report.ImagePaths.Count > 1 && _currentImageIndex < _selectedProject.Report.ImagePaths.Count - 1;
         private void ShowPreviousImage(object obj) { _currentImageIndex--; UpdateImageDisplay(); }
         private bool CanShowPreviousImage() => _selectedProject != null && _currentImageIndex > 0;
 
-        // --- THIS IS THE CORE LOGIC CHANGE ---
         private void UpdateImageDisplay()
         {
-            // Check if a project is selected AND if that project has any images.
-            if (_selectedProject != null && _selectedProject.ImagePaths.Any())
+            if (_selectedProject != null && _selectedProject.Report.ImagePaths.Any())
             {
-                // If yes, show the real image and the counter.
-                PreviewImagePath = _selectedProject.ImagePaths[_currentImageIndex];
-                ImageCounterText = $"Image {_currentImageIndex + 1} of {_selectedProject.ImagePaths.Count}";
+                PreviewImagePath = _selectedProject.Report.ImagePaths[_currentImageIndex];
+                ImageCounterText = $"Image {_currentImageIndex + 1} of {_selectedProject.Report.ImagePaths.Count}";
             }
             else
             {
-                PreviewImagePath = "pack://application:,,,/Assets/placeholder.png";
+                PreviewImagePath = DefaultImagePath;
                 ImageCounterText = "No Images";
             }
+
+            ((RelayCommand)NextImageCommand).RaiseCanExecuteChanged();
+            ((RelayCommand)PreviousImageCommand).RaiseCanExecuteChanged();
         }
     }
 }

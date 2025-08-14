@@ -2,7 +2,8 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:models="clr-namespace:MyUserApp.Models"
              mc:Ignorable="d" 
              d:DesignHeight="550" d:DesignWidth="900">
 
@@ -31,20 +32,43 @@
 
             <!-- Actions Column -->
             <StackPanel Grid.Column="0" Margin="0,0,20,0">
-                <Button Content="Start New Project" 
-                        Command="{Binding StartNewProjectCommand}" 
-                        Padding="10" FontSize="16" FontWeight="Bold"
-                        ToolTip="Begin a new inspection report."/>
+                <Button Content="Start New Project" Command="{Binding StartNewProjectCommand}" Padding="10" FontSize="16" FontWeight="Bold" ToolTip="Begin a new inspection report."/>
+                <Button Content="Open Selected Project" Command="{Binding OpenProjectCommand}" Padding="10" FontSize="16" FontWeight="Bold" Margin="0,10,0,0" ToolTip="Open the selected project from the list."/>
             </StackPanel>
 
             <!-- Recent Projects Column -->
             <GroupBox Grid.Column="1" Header="Recent Projects">
-                <!-- THIS IS THE CORRECTED LISTVIEW -->
-                <ListView ItemsSource="{Binding RecentProjects}"
-                          SelectedItem="{Binding SelectedProject}">
+                <ListView ItemsSource="{Binding RecentProjects}" SelectedItem="{Binding SelectedProject}">
+
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <EventSetter Event="MouseDoubleClick" Handler="ListViewItem_MouseDoubleClick" />
+                            <!-- ======================================================= -->
+                            <!-- ==   NEW: Style Triggers for coloring the rows       == -->
+                            <!-- ======================================================= -->
+                            <Style.Triggers>
+                                <!-- If the user's role is Inspector, set a blue border -->
+                                <DataTrigger Binding="{Binding CurrentUserRole}" Value="{x:Static models:AuthorType.Inspector}">
+                                    <Setter Property="BorderBrush" Value="DodgerBlue"/>
+                                    <Setter Property="BorderThickness" Value="2,1,1,1"/>
+                                </DataTrigger>
+                                <!-- If the user's role is Verifier, set a yellow border -->
+                                <DataTrigger Binding="{Binding CurrentUserRole}" Value="{x:Static models:AuthorType.Verifier}">
+                                    <Setter Property="BorderBrush" Value="Goldenrod"/>
+                                    <Setter Property="BorderThickness" Value="2,1,1,1"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+
                     <ListView.View>
                         <GridView>
-                            <GridViewColumn Header="Project Name" DisplayMemberBinding="{Binding ProjectName}" Width="300"/>
+                            <!-- ======================================================= -->
+                            <!-- ==       NEW: "Your Role" column added               == -->
+                            <!-- ======================================================= -->
+                            <GridViewColumn Header="Your Role" DisplayMemberBinding="{Binding RoleDisplayString}" Width="100"/>
+                            <GridViewColumn Header="Project Name" DisplayMemberBinding="{Binding ProjectName}" Width="250"/>
                             <GridViewColumn Header="Inspector" DisplayMemberBinding="{Binding InspectorName}" Width="120"/>
                             <GridViewColumn Header="Date" DisplayMemberBinding="{Binding Timestamp, StringFormat='g'}" Width="150"/>
                         </GridView>
@@ -59,15 +83,13 @@
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-
                     <Image Grid.Row="0" Source="{Binding PreviewImagePath}" Stretch="Uniform" Margin="5"/>
-
                     <Grid Grid.Row="1" Margin="5">
                         <Grid.Style>
                             <Style TargetType="{x:Type Grid}">
                                 <Setter Property="Visibility" Value="Visible"/>
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding SelectedProject.ImagePaths.Count}" Value="0">
+                                    <DataTrigger Binding="{Binding SelectedProject.Report.ImagePaths.Count}" Value="0">
                                         <Setter Property="Visibility" Value="Collapsed"/>
                                     </DataTrigger>
                                 </Style.Triggers>
@@ -78,7 +100,6 @@
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-
                         <Button Grid.Column="0" Content="Prev" HorizontalAlignment="Left" Command="{Binding PreviousImageCommand}"/>
                         <TextBlock Grid.Column="1" Text="{Binding ImageCounterText}" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="10,0" FontWeight="SemiBold"/>
                         <Button Grid.Column="2" Content="Next" HorizontalAlignment="Right" Command="{Binding NextImageCommand}"/>

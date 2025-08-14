@@ -7,13 +7,13 @@
         xmlns:views="clr-namespace:MyUserApp.Views"
         mc:Ignorable="d"
         Title="Aircraft Inspection Reporter" Height="600" Width="850"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+
+    Closing="Window_Closing">
 
     <Window.DataContext>
         <viewmodels:MainViewModel/>
     </Window.DataContext>
-    
-
 
     <Window.Resources>
         <!-- This dictionary tells WPF which View to use for each ViewModel -->
@@ -31,6 +31,13 @@
 
         <DataTemplate DataType="{x:Type viewmodels:ReportEntryViewModel}">
             <views:ReportEntryView/>
+        </DataTemplate>
+
+        <!-- =================================================================== -->
+        <!-- ==    NEW: Added a DataTemplate for the Image Editor for completeness == -->
+        <!-- =================================================================== -->
+        <DataTemplate DataType="{x:Type viewmodels:ImageEditorViewModel}">
+            <views:ImageEditorView/>
         </DataTemplate>
     </Window.Resources>
 

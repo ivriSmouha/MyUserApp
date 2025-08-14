@@ -7,9 +7,7 @@
              xmlns:local="clr-namespace:MyUserApp.Views"
              xmlns:viewmodels="clr-namespace:MyUserApp.ViewModels"
              xmlns:converters="clr-namespace:MyUserApp.Converters"
-             
              xmlns:skia="clr-namespace:SkiaSharp.Views.WPF;assembly=SkiaSharp.Views.WPF"
-
              d:DataContext="{d:DesignInstance Type=viewmodels:ImageEditorViewModel}"
              mc:Ignorable="d" 
              d:DesignHeight="768" d:DesignWidth="1280"
@@ -55,11 +53,6 @@
 
         <!-- Column 1: SkiaSharp Canvas -->
         <Grid Grid.Column="1" Background="Black" ClipToBounds="True">
-            <!-- 
-              CHANGES:
-              1. Added Focusable="True" so the element can receive keyboard input.
-              2. Added the KeyDown event handler to listen for the Delete key.
-            -->
             <skia:SKElement x:Name="SkiaElement"
                             Focusable="True"
                             KeyDown="SkiaElement_KeyDown"
@@ -108,7 +101,11 @@
                     <Button Content="Run AI Analysis" Command="{Binding RunAiAnalysisCommand}" Margin="0,5"/>
 
                     <Separator Margin="0,15"/>
-                    <Button Content="Finish and Export Report" Command="{Binding FinishEditingCommand}" Background="#FF007ACC" Foreground="White" FontWeight="Bold" Padding="10" Margin="0,15,0,0"/>
+                    <!-- =========================================================== -->
+                    <!-- ==        NEW: Dedicated Save and Finish buttons           == -->
+                    <!-- =========================================================== -->
+                    <Button Content="Save Project" Command="{Binding SaveCommand}" Background="#FF28A745" Foreground="White" FontWeight="Bold" Padding="10" Margin="0,15,0,5"/>
+                    <Button Content="Finish &amp; Export" Command="{Binding FinishEditingCommand}" Background="#FF007ACC" Foreground="White" Padding="10" Margin="0,0,0,0"/>
                 </StackPanel>
             </ScrollViewer>
         </Border>
