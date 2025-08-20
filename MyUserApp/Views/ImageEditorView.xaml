@@ -5,109 +5,188 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:MyUserApp.Views"
-             xmlns:viewmodels="clr-namespace:MyUserApp.ViewModels"
+             xmlns:vm="clr-namespace:MyUserApp.ViewModels"
              xmlns:converters="clr-namespace:MyUserApp.Converters"
              xmlns:skia="clr-namespace:SkiaSharp.Views.WPF;assembly=SkiaSharp.Views.WPF"
-             d:DataContext="{d:DesignInstance Type=viewmodels:ImageEditorViewModel}"
              mc:Ignorable="d" 
-             d:DesignHeight="768" d:DesignWidth="1280"
-             Background="#FF2D2D30">
+             d:DataContext="{d:DesignInstance Type=vm:ImageEditorViewModel}"
+             d:DesignHeight="800" d:DesignWidth="1280"
+             Background="#2D2D30">
 
     <UserControl.Resources>
         <converters:SelectedToBorderBrushConverter x:Key="SelectedToBorderBrushConverter"/>
+        <converters:FullPathToFileNameConverter x:Key="FullPathToFileNameConverter"/>
+        <converters:PathToBitmapImageConverter x:Key="PathToBitmapImageConverter"/>
+
+        <!-- =================================================================== -->
+        <!-- ==        NEW: Styles for the new Expander panels              == -->
+        <!-- =================================================================== -->
+        <Style TargetType="Expander">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#3E3E42"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Margin" Value="0,0,0,5"/>
+        </Style>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Margin" Value="0,2"/>
+        </Style>
+        <Style x:Key="EditorPanelGrid" TargetType="Grid">
+            <Setter Property="Margin" Value="10,5"/>
+        </Style>
+        <!-- =================================================================== -->
     </UserControl.Resources>
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="200"/>
+            <!-- Increased the default width to better accommodate the new panels -->
+            <ColumnDefinition Width="250" MinWidth="200"/>
+            <ColumnDefinition Width="5"/>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="250"/>
         </Grid.ColumnDefinitions>
 
-        <!-- Column 0: Image Thumbnails List -->
-        <Border Grid.Column="0" Background="#FF3F3F46" BorderBrush="#FF4F4F56" BorderThickness="0,0,1,0">
-            <DockPanel>
-                <TextBlock DockPanel.Dock="Top" Text="{Binding ProjectName}" Foreground="White" FontWeight="Bold" Margin="10" FontSize="16" TextWrapping="Wrap"/>
-                <ListView ItemsSource="{Binding ImageThumbnails}" 
-                          SelectedItem="{Binding SelectedImage, Mode=TwoWay}"
-                          Background="Transparent" BorderThickness="0"
-                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <ListView.ItemTemplate>
-                        <DataTemplate>
-                            <Border Width="160" Height="120" Margin="5" CornerRadius="4" BorderThickness="3">
-                                <Border.BorderBrush>
-                                    <MultiBinding Converter="{StaticResource SelectedToBorderBrushConverter}">
-                                        <Binding Path="."/>
-                                        <Binding Path="DataContext.SelectedImage" RelativeSource="{RelativeSource AncestorType=ListView}"/>
-                                    </MultiBinding>
-                                </Border.BorderBrush>
-                                <Grid>
-                                    <Image Source="{Binding}" Stretch="UniformToFill" />
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
-            </DockPanel>
-        </Border>
+        <!-- Left Panel: All controls are now in a DockPanel -->
+        <DockPanel Grid.Column="0" Margin="5">
 
-        <!-- Column 1: SkiaSharp Canvas -->
-        <Grid Grid.Column="1" Background="Black" ClipToBounds="True">
+            <!-- Main Project Name at the top -->
+            <TextBlock Text="{Binding ProjectName}" DockPanel.Dock="Top" 
+                       Foreground="White" FontWeight="Bold" FontSize="16"
+                       TextTrimming="CharacterEllipsis" Margin="5,0,5,10"
+                       ToolTip="{Binding ProjectName}"/>
+
+            <!-- Bottom buttons for adding/deleting images -->
+            <StackPanel DockPanel.Dock="Bottom" Orientation="Vertical" Margin="0,5,0,0">
+                <Button Content="Add Image(s)" Command="{Binding AddImagesCommand}" Height="30" Margin="0,5,0,0"/>
+                <Button Content="Delete Selected Image" Command="{Binding DeleteImageCommand}" Height="30" Margin="0,5,0,0"/>
+            </StackPanel>
+
+            <!-- ScrollViewer to contain the new panels and the thumbnail list -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Orientation="Vertical">
+
+                    <!-- =================================================================== -->
+                    <!-- ==        NEW: Project Details Expander                        == -->
+                    <!-- =================================================================== -->
+                    <Expander Header="Project Details" IsExpanded="True">
+                        <Grid Style="{StaticResource EditorPanelGrid}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Aircraft Type:" Margin="0,0,5,0"/>
+                            <ComboBox Grid.Row="0" Grid.Column="1" 
+                                      ItemsSource="{Binding AircraftTypes}"
+                                      SelectedItem="{Binding ReportAircraftType, Mode=TwoWay}"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Tail Number:" Margin="0,0,5,0"/>
+                            <ComboBox Grid.Row="1" Grid.Column="1" 
+                                      ItemsSource="{Binding TailNumbers}"
+                                      SelectedItem="{Binding ReportTailNumber, Mode=TwoWay}"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Side:" Margin="0,0,5,0"/>
+                            <ComboBox Grid.Row="2" Grid.Column="1" 
+                                      ItemsSource="{Binding AircraftSides}"
+                                      SelectedItem="{Binding ReportAircraftSide, Mode=TwoWay}"/>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Reason:" Margin="0,0,5,0"/>
+                            <ComboBox Grid.Row="3" Grid.Column="1" 
+                                      ItemsSource="{Binding Reasons}"
+                                      SelectedItem="{Binding ReportReason, Mode=TwoWay}"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Inspector:" Margin="0,0,5,0"/>
+                            <ComboBox Grid.Row="4" Grid.Column="1" 
+                                      ItemsSource="{Binding Usernames}"
+                                      SelectedItem="{Binding ReportInspectorName, Mode=TwoWay}"/>
+
+                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Verifier:" Margin="0,0,5,0"/>
+                            <ComboBox Grid.Row="5" Grid.Column="1" 
+                                      ItemsSource="{Binding Usernames}"
+                                      SelectedItem="{Binding ReportVerifierName, Mode=TwoWay}"/>
+                        </Grid>
+                    </Expander>
+
+                    <!-- =================================================================== -->
+                    <!-- ==        NEW: Annotation Filters Expander                     == -->
+                    <!-- =================================================================== -->
+                    <Expander Header="Annotation Filters" IsExpanded="True">
+                        <StackPanel Margin="10,5">
+                            <CheckBox Content="Show Inspector" IsChecked="{Binding ShowInspectorAnnotations, Mode=TwoWay}" Foreground="White" Margin="0,2"/>
+                            <CheckBox Content="Show Verifier" IsChecked="{Binding ShowVerifierAnnotations, Mode=TwoWay}" Foreground="White" Margin="0,2"/>
+                            <CheckBox Content="Show AI" IsChecked="{Binding ShowAiAnnotations, Mode=TwoWay}" Foreground="White" Margin="0,2"/>
+                        </StackPanel>
+                    </Expander>
+
+                    <!-- List of image thumbnails -->
+                    <ListView x:Name="ImageThumbnailsList" 
+                              ItemsSource="{Binding ImageThumbnails}"
+                              SelectedItem="{Binding SelectedImage, Mode=TwoWay}"
+                              Background="#3E3E42" BorderThickness="0"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                              Margin="0,5,0,0">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <Border Width="Auto" Height="120" Margin="5" CornerRadius="3" BorderThickness="3">
+                                    <Border.BorderBrush>
+                                        <MultiBinding Converter="{StaticResource SelectedToBorderBrushConverter}">
+                                            <Binding Path="."/>
+                                            <Binding Path="DataContext.SelectedImage" RelativeSource="{RelativeSource AncestorType=ListView}"/>
+                                        </MultiBinding>
+                                    </Border.BorderBrush>
+                                    <Grid>
+                                        <Image Source="{Binding Converter={StaticResource PathToBitmapImageConverter}}" Stretch="UniformToFill"/>
+                                        <Border Background="#80000000">
+                                            <TextBlock Text="{Binding Converter={StaticResource FullPathToFileNameConverter}}"
+                                                       Foreground="White" VerticalAlignment="Bottom" HorizontalAlignment="Center"
+                                                       Margin="5" TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding}"/>
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </StackPanel>
+            </ScrollViewer>
+        </DockPanel>
+
+        <GridSplitter Grid.Column="1" Width="5" Background="#2D2D30" HorizontalAlignment="Stretch" />
+
+        <!-- Right Panel: Main Image Editor Canvas -->
+        <Grid Grid.Column="2">
             <skia:SKElement x:Name="SkiaElement"
-                            Focusable="True"
-                            KeyDown="SkiaElement_KeyDown"
                             PaintSurface="CanvasView_PaintSurface"
                             MouseWheel="CanvasView_MouseWheel"
                             MouseLeftButtonDown="CanvasView_MouseLeftButtonDown"
+                            MouseMove="CanvasView_MouseMove"
                             MouseLeftButtonUp="CanvasView_MouseLeftButtonUp"
-                            MouseMove="CanvasView_MouseMove"/>
+                            KeyDown="SkiaElement_KeyDown"
+                            Focusable="True"/>
+
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="10">
+                <Button Content="Undo" Command="{Binding UndoCommand}" Margin="2" Width="60"/>
+                <Button Content="Redo" Command="{Binding RedoCommand}" Margin="2" Width="60"/>
+                <Button Content="Reset View" Command="{Binding ResetViewCommand}" Margin="2,2,10,2"/>
+                <Button Content="Rotate Left" Command="{Binding RotateLeftCommand}" Margin="10,2,2,2"/>
+                <Button Content="Rotate Right" Command="{Binding RotateRightCommand}" Margin="2"/>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="10">
+                <Button Content="Run AI Analysis" Command="{Binding RunAiAnalysisCommand}" Padding="10,5" Margin="5"/>
+                <Button Content="Save and Finish" Command="{Binding FinishEditingCommand}" Padding="10,5" Margin="5" FontWeight="Bold"/>
+            </StackPanel>
         </Grid>
 
-        <!-- Column 2: Control Panel for user actions -->
-        <Border Grid.Column="2" Background="#FF3F3F46" BorderBrush="#FF4F4F56" BorderThickness="1,0,0,0">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel Margin="10">
-                    <TextBlock Text="View Controls" Foreground="White" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
-
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition/>
-                            <ColumnDefinition/>
-                        </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" Content="Undo" Command="{Binding UndoCommand}" Margin="0,5,2,5"/>
-                        <Button Grid.Column="1" Content="Redo" Command="{Binding RedoCommand}" Margin="2,5,0,5"/>
-                    </Grid>
-
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition/>
-                            <ColumnDefinition/>
-                        </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" Content="Rotate Left" Command="{Binding RotateLeftCommand}" Margin="0,5,2,5"/>
-                        <Button Grid.Column="1" Content="Rotate Right" Command="{Binding RotateRightCommand}" Margin="2,5,0,5"/>
-                    </Grid>
-
-                    <Button Content="Reset View" Command="{Binding ResetViewCommand}" Margin="0,5"/>
-                    <Button Content="Delete Selected" Command="{Binding DeleteAnnotationCommand}" Margin="0,5"/>
-                    <Separator Margin="0,15"/>
-
-                    <TextBlock Text="Annotation Filters" Foreground="White" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
-                    <CheckBox IsChecked="{Binding ShowInspectorAnnotations}" Content="Inspector" Foreground="White"/>
-                    <CheckBox IsChecked="{Binding ShowVerifierAnnotations}" Content="Verifier" Foreground="White"/>
-                    <CheckBox IsChecked="{Binding ShowAiAnnotations}" Content="AI" Foreground="White"/>
-
-                    <Separator Margin="0,15"/>
-                    <TextBlock Text="Analysis" Foreground="White" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
-                    <Button Content="Run AI Analysis" Command="{Binding RunAiAnalysisCommand}" Margin="0,5"/>
-
-                    <Separator Margin="0,15"/>
-                    <!-- =========================================================== -->
-                    <!-- ==        NEW: Dedicated Save and Finish buttons           == -->
-                    <!-- =========================================================== -->
-                    <Button Content="Save Project" Command="{Binding SaveCommand}" Background="#FF28A745" Foreground="White" FontWeight="Bold" Padding="10" Margin="0,15,0,5"/>
-                    <Button Content="Finish &amp; Export" Command="{Binding FinishEditingCommand}" Background="#FF007ACC" Foreground="White" Padding="10" Margin="0,0,0,0"/>
-                </StackPanel>
-            </ScrollViewer>
-        </Border>
     </Grid>
 </UserControl>
