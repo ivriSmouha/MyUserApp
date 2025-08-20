@@ -14,10 +14,10 @@ namespace MyUserApp.ViewModels
             get => _currentView;
             set
             {
-                if (_currentView is ImageEditorViewModel oldEditorVM)
-                {
-                    oldEditorVM.SaveAnnotations();
-                }
+                // ===================================================================
+                // ==     REMOVED: The invalid call to oldEditorVM.SaveAnnotations();  ==
+                // ==     The new IsDirty flag and prompts make this obsolete.        ==
+                // ===================================================================
                 _currentView = value;
                 OnPropertyChanged();
             }
@@ -61,9 +61,6 @@ namespace MyUserApp.ViewModels
             projectHubVM.OnLogoutRequested += ShowLoginView;
             projectHubVM.OnStartNewProjectRequested += ShowReportEntryScreen;
 
-            // ===================================================================
-            // ==    CHANGE: The event now provides the role, so we pass it on  ==
-            // ===================================================================
             projectHubVM.OnOpenProjectRequested += async (report, role) => await ShowImageEditorAsync(report, user, role);
 
             CurrentView = projectHubVM;
@@ -73,7 +70,6 @@ namespace MyUserApp.ViewModels
         {
             var reportEntryVM = new ReportEntryViewModel(user);
             reportEntryVM.OnCancelled += () => ShowProjectHub(user);
-            // When creating a NEW report, the user is always the Inspector.
             reportEntryVM.OnReportSubmitted += async (report) => await OnReportSubmissionSucceededAsync(report, user);
             reportEntryVM.OnLogoutRequested += ShowLoginView;
             CurrentView = reportEntryVM;
@@ -81,16 +77,11 @@ namespace MyUserApp.ViewModels
 
         private async Task OnReportSubmissionSucceededAsync(InspectionReportModel report, UserModel user)
         {
-            // For a new report, the creator's role is always Inspector.
             await ShowImageEditorAsync(report, user, AuthorType.Inspector);
         }
 
-        // ===================================================================
-        // ==    CHANGE: Method signature updated to accept the user's role   ==
-        // ===================================================================
         private async Task ShowImageEditorAsync(InspectionReportModel report, UserModel user, AuthorType role)
         {
-            // Pass the role to the editor's constructor.
             var imageEditorVM = new ImageEditorViewModel(report, user, role);
             imageEditorVM.OnFinished += () => ShowProjectHub(user);
 

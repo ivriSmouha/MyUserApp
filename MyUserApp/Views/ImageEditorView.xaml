@@ -18,16 +18,16 @@
         <converters:FullPathToFileNameConverter x:Key="FullPathToFileNameConverter"/>
         <converters:PathToBitmapImageConverter x:Key="PathToBitmapImageConverter"/>
 
-        <!-- =================================================================== -->
-        <!-- ==        NEW: Styles for the new Expander panels              == -->
-        <!-- =================================================================== -->
+        <!-- Standard converter to show/hide the unsaved changes indicator (*) -->
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+
         <Style TargetType="Expander">
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderBrush" Value="#3E3E42"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Margin" Value="0,0,0,5"/>
         </Style>
-        <Style TargetType="TextBlock">
+        <Style TargetType="TextBlock" x:Key="LabelStyle">
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
@@ -37,39 +37,45 @@
         <Style x:Key="EditorPanelGrid" TargetType="Grid">
             <Setter Property="Margin" Value="10,5"/>
         </Style>
-        <!-- =================================================================== -->
     </UserControl.Resources>
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <!-- Increased the default width to better accommodate the new panels -->
             <ColumnDefinition Width="250" MinWidth="200"/>
             <ColumnDefinition Width="5"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <!-- Left Panel: All controls are now in a DockPanel -->
         <DockPanel Grid.Column="0" Margin="5">
 
-            <!-- Main Project Name at the top -->
-            <TextBlock Text="{Binding ProjectName}" DockPanel.Dock="Top" 
-                       Foreground="White" FontWeight="Bold" FontSize="16"
-                       TextTrimming="CharacterEllipsis" Margin="5,0,5,10"
-                       ToolTip="{Binding ProjectName}"/>
+            <!-- =================================================================== -->
+            <!-- ==   UPDATED: Project Title now indicates unsaved changes        == -->
+            <!-- =================================================================== -->
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="5,0,5,10" ToolTip="{Binding ProjectName}">
+                <TextBlock FontWeight="Bold" FontSize="16" TextTrimming="CharacterEllipsis">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Text" Value="{Binding ProjectName}"/>
+                            <Setter Property="Foreground" Value="White"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsDirty}" Value="True">
+                                    <Setter Property="Foreground" Value="Orange"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <TextBlock Text="*" FontWeight="Bold" FontSize="16" Foreground="Orange"
+                           Visibility="{Binding IsDirty, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            </StackPanel>
 
-            <!-- Bottom buttons for adding/deleting images -->
             <StackPanel DockPanel.Dock="Bottom" Orientation="Vertical" Margin="0,5,0,0">
                 <Button Content="Add Image(s)" Command="{Binding AddImagesCommand}" Height="30" Margin="0,5,0,0"/>
                 <Button Content="Delete Selected Image" Command="{Binding DeleteImageCommand}" Height="30" Margin="0,5,0,0"/>
             </StackPanel>
 
-            <!-- ScrollViewer to contain the new panels and the thumbnail list -->
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Orientation="Vertical">
-
-                    <!-- =================================================================== -->
-                    <!-- ==        NEW: Project Details Expander                        == -->
-                    <!-- =================================================================== -->
                     <Expander Header="Project Details" IsExpanded="True">
                         <Grid Style="{StaticResource EditorPanelGrid}">
                             <Grid.ColumnDefinitions>
@@ -84,42 +90,21 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Aircraft Type:" Margin="0,0,5,0"/>
-                            <ComboBox Grid.Row="0" Grid.Column="1" 
-                                      ItemsSource="{Binding AircraftTypes}"
-                                      SelectedItem="{Binding ReportAircraftType, Mode=TwoWay}"/>
-
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Tail Number:" Margin="0,0,5,0"/>
-                            <ComboBox Grid.Row="1" Grid.Column="1" 
-                                      ItemsSource="{Binding TailNumbers}"
-                                      SelectedItem="{Binding ReportTailNumber, Mode=TwoWay}"/>
-
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Side:" Margin="0,0,5,0"/>
-                            <ComboBox Grid.Row="2" Grid.Column="1" 
-                                      ItemsSource="{Binding AircraftSides}"
-                                      SelectedItem="{Binding ReportAircraftSide, Mode=TwoWay}"/>
-
-                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Reason:" Margin="0,0,5,0"/>
-                            <ComboBox Grid.Row="3" Grid.Column="1" 
-                                      ItemsSource="{Binding Reasons}"
-                                      SelectedItem="{Binding ReportReason, Mode=TwoWay}"/>
-
-                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Inspector:" Margin="0,0,5,0"/>
-                            <ComboBox Grid.Row="4" Grid.Column="1" 
-                                      ItemsSource="{Binding Usernames}"
-                                      SelectedItem="{Binding ReportInspectorName, Mode=TwoWay}"/>
-
-                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Verifier:" Margin="0,0,5,0"/>
-                            <ComboBox Grid.Row="5" Grid.Column="1" 
-                                      ItemsSource="{Binding Usernames}"
-                                      SelectedItem="{Binding ReportVerifierName, Mode=TwoWay}"/>
+                            <TextBlock Style="{StaticResource LabelStyle}" Grid.Row="0" Grid.Column="0" Text="Aircraft Type:" Margin="0,0,5,0"/>
+                            <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding AircraftTypes}" SelectedItem="{Binding ReportAircraftType, Mode=TwoWay}"/>
+                            <TextBlock Style="{StaticResource LabelStyle}" Grid.Row="1" Grid.Column="0" Text="Tail Number:" Margin="0,0,5,0"/>
+                            <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding TailNumbers}" SelectedItem="{Binding ReportTailNumber, Mode=TwoWay}"/>
+                            <TextBlock Style="{StaticResource LabelStyle}" Grid.Row="2" Grid.Column="0" Text="Side:" Margin="0,0,5,0"/>
+                            <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding AircraftSides}" SelectedItem="{Binding ReportAircraftSide, Mode=TwoWay}"/>
+                            <TextBlock Style="{StaticResource LabelStyle}" Grid.Row="3" Grid.Column="0" Text="Reason:" Margin="0,0,5,0"/>
+                            <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{Binding Reasons}" SelectedItem="{Binding ReportReason, Mode=TwoWay}"/>
+                            <TextBlock Style="{StaticResource LabelStyle}" Grid.Row="4" Grid.Column="0" Text="Inspector:" Margin="0,0,5,0"/>
+                            <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding Usernames}" SelectedItem="{Binding ReportInspectorName, Mode=TwoWay}"/>
+                            <TextBlock Style="{StaticResource LabelStyle}" Grid.Row="5" Grid.Column="0" Text="Verifier:" Margin="0,0,5,0"/>
+                            <ComboBox Grid.Row="5" Grid.Column="1" ItemsSource="{Binding Usernames}" SelectedItem="{Binding ReportVerifierName, Mode=TwoWay}"/>
                         </Grid>
                     </Expander>
 
-                    <!-- =================================================================== -->
-                    <!-- ==        NEW: Annotation Filters Expander                     == -->
-                    <!-- =================================================================== -->
                     <Expander Header="Annotation Filters" IsExpanded="True">
                         <StackPanel Margin="10,5">
                             <CheckBox Content="Show Inspector" IsChecked="{Binding ShowInspectorAnnotations, Mode=TwoWay}" Foreground="White" Margin="0,2"/>
@@ -128,13 +113,7 @@
                         </StackPanel>
                     </Expander>
 
-                    <!-- List of image thumbnails -->
-                    <ListView x:Name="ImageThumbnailsList" 
-                              ItemsSource="{Binding ImageThumbnails}"
-                              SelectedItem="{Binding SelectedImage, Mode=TwoWay}"
-                              Background="#3E3E42" BorderThickness="0"
-                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                              Margin="0,5,0,0">
+                    <ListView x:Name="ImageThumbnailsList" ItemsSource="{Binding ImageThumbnails}" SelectedItem="{Binding SelectedImage, Mode=TwoWay}" Background="#3E3E42" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" Margin="0,5,0,0">
                         <ListView.ItemTemplate>
                             <DataTemplate>
                                 <Border Width="Auto" Height="120" Margin="5" CornerRadius="3" BorderThickness="3">
@@ -147,10 +126,7 @@
                                     <Grid>
                                         <Image Source="{Binding Converter={StaticResource PathToBitmapImageConverter}}" Stretch="UniformToFill"/>
                                         <Border Background="#80000000">
-                                            <TextBlock Text="{Binding Converter={StaticResource FullPathToFileNameConverter}}"
-                                                       Foreground="White" VerticalAlignment="Bottom" HorizontalAlignment="Center"
-                                                       Margin="5" TextTrimming="CharacterEllipsis"
-                                                       ToolTip="{Binding}"/>
+                                            <TextBlock Text="{Binding Converter={StaticResource FullPathToFileNameConverter}}" Foreground="White" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="5" TextTrimming="CharacterEllipsis" ToolTip="{Binding}"/>
                                         </Border>
                                     </Grid>
                                 </Border>
@@ -163,28 +139,32 @@
 
         <GridSplitter Grid.Column="1" Width="5" Background="#2D2D30" HorizontalAlignment="Stretch" />
 
-        <!-- Right Panel: Main Image Editor Canvas -->
         <Grid Grid.Column="2">
-            <skia:SKElement x:Name="SkiaElement"
-                            PaintSurface="CanvasView_PaintSurface"
-                            MouseWheel="CanvasView_MouseWheel"
-                            MouseLeftButtonDown="CanvasView_MouseLeftButtonDown"
-                            MouseMove="CanvasView_MouseMove"
-                            MouseLeftButtonUp="CanvasView_MouseLeftButtonUp"
-                            KeyDown="SkiaElement_KeyDown"
-                            Focusable="True"/>
+            <skia:SKElement x:Name="SkiaElement" PaintSurface="CanvasView_PaintSurface" MouseWheel="CanvasView_MouseWheel" MouseLeftButtonDown="CanvasView_MouseLeftButtonDown" MouseMove="CanvasView_MouseMove" MouseLeftButtonUp="CanvasView_MouseLeftButtonUp" KeyDown="SkiaElement_KeyDown" Focusable="True"/>
 
             <StackPanel Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="10">
-                <Button Content="Undo" Command="{Binding UndoCommand}" Margin="2" Width="60"/>
+                <Button Content="Undo" Command="{Binding UndoCommand}" Margin="2" Width="60" Click="Button_Click"/>
                 <Button Content="Redo" Command="{Binding RedoCommand}" Margin="2" Width="60"/>
                 <Button Content="Reset View" Command="{Binding ResetViewCommand}" Margin="2,2,10,2"/>
                 <Button Content="Rotate Left" Command="{Binding RotateLeftCommand}" Margin="10,2,2,2"/>
                 <Button Content="Rotate Right" Command="{Binding RotateRightCommand}" Margin="2"/>
             </StackPanel>
 
+            <!-- =================================================================== -->
+            <!-- ==   UPDATED: New button layout with tooltips for save actions   == -->
+            <!-- =================================================================== -->
             <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="10">
                 <Button Content="Run AI Analysis" Command="{Binding RunAiAnalysisCommand}" Padding="10,5" Margin="5"/>
-                <Button Content="Save and Finish" Command="{Binding FinishEditingCommand}" Padding="10,5" Margin="5" FontWeight="Bold"/>
+
+                <Button Content="Save" 
+                        Command="{Binding SaveOnlyCommand}" 
+                        Padding="10,5" Margin="20,5,5,5"
+                        ToolTip="Save all changes and export the full report. You will remain on this screen."/>
+
+                <Button Content="Save and Finish" 
+                        Command="{Binding FinishEditingCommand}" 
+                        Padding="10,5" Margin="5" FontWeight="Bold"
+                        ToolTip="Save all changes, export the full report, and return to the project hub."/>
             </StackPanel>
         </Grid>
 
