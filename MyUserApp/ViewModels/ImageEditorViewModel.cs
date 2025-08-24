@@ -27,8 +27,13 @@ namespace MyUserApp.ViewModels
         private readonly Dictionary<string, ImageAdjustmentModel> _sessionAdjustments = new Dictionary<string, ImageAdjustmentModel>();
         private enum InteractionMode { None, Drawing, Panning }
         private InteractionMode _currentMode = InteractionMode.None;
-        private SKPoint _panStartPoint;
-        private SKPoint _drawStartPoint;
+
+        // ===================================================================
+        // ==  UPDATED: Replaced _panStartPoint with two more robust fields.  ==
+        // ===================================================================
+        private SKPoint _interactionStartPoint; // For both pan and draw start positions
+        private SKPoint _panStartOffset; // Stores the offset at the beginning of a pan
+
         private AnnotationModel _previewAnnotation;
         private float _zoomScale = 1.0f;
         private SKPoint _panOffset = SKPoint.Empty;
@@ -603,46 +608,82 @@ namespace MyUserApp.ViewModels
 
             SelectedAnnotation = null;
             _currentMode = InteractionMode.Drawing;
-            _drawStartPoint = imagePoint.Value;
+            // ===================================================================
+            // ==      UPDATED: Use the unified _interactionStartPoint field.   ==
+            // ===================================================================
+            _interactionStartPoint = imagePoint.Value;
 
             _previewAnnotation = new AnnotationModel
             {
                 Author = _currentUserRole,
-                CenterX = _drawStartPoint.X,
-                CenterY = _drawStartPoint.Y,
+                CenterX = _interactionStartPoint.X,
+                CenterY = _interactionStartPoint.Y,
                 Radius = 0
             };
         }
 
+        // ===================================================================
+        // ==      UPDATED: Rewritten Zoom method for accurate anchoring.   ==
+        // ===================================================================
         public void Zoom(float factor, float anchorX, float anchorY)
         {
+            if (_lastCanvasInfo.Width == 0) return;
+
             float oldScale = _zoomScale;
             _zoomScale = Math.Max(0.1f, Math.Min(_zoomScale * factor, 10.0f));
-            _panOffset.X = anchorX - (_zoomScale / oldScale) * (anchorX - _panOffset.X);
-            _panOffset.Y = anchorY - (_zoomScale / oldScale) * (anchorY - _panOffset.Y);
+            float scaleRatio = _zoomScale / oldScale;
+
+            // The key to correct zooming is to perform calculations relative to the canvas center,
+            // matching the transformation pipeline in the Draw() method.
+            float canvasCenterX = _lastCanvasInfo.Width / 2f;
+            float canvasCenterY = _lastCanvasInfo.Height / 2f;
+
+            // Convert the mouse's anchor point and the pan offset to be relative to the center.
+            float centeredAnchorX = anchorX - canvasCenterX;
+            float centeredAnchorY = anchorY - canvasCenterY;
+
+            // This is the standard formula for point-of-interest zooming.
+            // new_offset = anchor - scale_ratio * (anchor - old_offset)
+            float newPanX = centeredAnchorX - scaleRatio * (centeredAnchorX - _panOffset.X);
+            float newPanY = centeredAnchorY - scaleRatio * (centeredAnchorY - _panOffset.Y);
+
+            _panOffset = new SKPoint(newPanX, newPanY);
             InvalidateCanvas();
         }
 
+        // ===================================================================
+        // ==     UPDATED: Rewritten StartPan for stable, predictable drag.  ==
+        // ===================================================================
         public void StartPan(float x, float y)
         {
             _currentMode = InteractionMode.Panning;
-            _panStartPoint = new SKPoint(x - _panStartPoint.X, y - _panStartPoint.Y);
+            // Store the initial mouse position when the pan begins.
+            _interactionStartPoint = new SKPoint(x, y);
+            // Store the current pan offset, so we can calculate the new offset from this starting point.
+            _panStartOffset = _panOffset;
         }
 
+        // ===================================================================
+        // ==  UPDATED: Rewritten UpdateInteraction for stable pan and draw. ==
+        // ===================================================================
         public void UpdateInteraction(float x, float y)
         {
             switch (_currentMode)
             {
                 case InteractionMode.Panning:
-                    _panOffset = new SKPoint(x - _panStartPoint.X, y - _panStartPoint.Y);
+                    // Calculate the delta (change) from the initial mouse position.
+                    float dx = x - _interactionStartPoint.X;
+                    float dy = y - _interactionStartPoint.Y;
+                    // The new offset is the offset at the start of the pan plus the delta.
+                    _panOffset = new SKPoint(_panStartOffset.X + dx, _panStartOffset.Y + dy);
                     InvalidateCanvas();
                     break;
                 case InteractionMode.Drawing:
                     SKPoint? currentImagePoint = ScreenToImageCoordinates(new SKPoint(x, y));
                     if (currentImagePoint == null || _previewAnnotation == null) return;
-                    double dx = currentImagePoint.Value.X - _drawStartPoint.X;
-                    double dy = currentImagePoint.Value.Y - _drawStartPoint.Y;
-                    _previewAnnotation.Radius = Math.Sqrt(dx * dx + dy * dy);
+                    double draw_dx = currentImagePoint.Value.X - _interactionStartPoint.X;
+                    double draw_dy = currentImagePoint.Value.Y - _interactionStartPoint.Y;
+                    _previewAnnotation.Radius = Math.Sqrt(draw_dx * draw_dx + draw_dy * draw_dy);
                     InvalidateCanvas();
                     break;
             }
