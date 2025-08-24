@@ -26,5 +26,7 @@ namespace MyUserApp.Models
         /// We use List<AnnotationModel> for serialization, as ObservableCollection is for UI.
         /// </summary>
         public Dictionary<string, List<AnnotationModel>> AnnotationsByImage { get; set; } = new Dictionary<string, List<AnnotationModel>>();
+        public Dictionary<string, ImageAdjustmentModel> AdjustmentsByImage { get; set; } = new Dictionary<string, ImageAdjustmentModel>();
+
     }
 }

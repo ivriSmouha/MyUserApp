@@ -17,8 +17,6 @@
         <converters:SelectedToBorderBrushConverter x:Key="SelectedToBorderBrushConverter"/>
         <converters:FullPathToFileNameConverter x:Key="FullPathToFileNameConverter"/>
         <converters:PathToBitmapImageConverter x:Key="PathToBitmapImageConverter"/>
-
-        <!-- Standard converter to show/hide the unsaved changes indicator (*) -->
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
 
         <Style TargetType="Expander">
@@ -47,10 +45,6 @@
         </Grid.ColumnDefinitions>
 
         <DockPanel Grid.Column="0" Margin="5">
-
-            <!-- =================================================================== -->
-            <!-- ==   UPDATED: Project Title now indicates unsaved changes        == -->
-            <!-- =================================================================== -->
             <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="5,0,5,10" ToolTip="{Binding ProjectName}">
                 <TextBlock FontWeight="Bold" FontSize="16" TextTrimming="CharacterEllipsis">
                     <TextBlock.Style>
@@ -113,6 +107,36 @@
                         </StackPanel>
                     </Expander>
 
+                    <!-- =================================================================== -->
+                    <!-- ==    UPDATED: Image adjustments with reset buttons.            == -->
+                    <!-- =================================================================== -->
+                    <Expander Header="Image Adjustments" IsExpanded="True">
+                        <Grid Style="{StaticResource EditorPanelGrid}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Brightness:" Style="{StaticResource LabelStyle}"/>
+                            <Button Grid.Row="0" Grid.Column="1" Content="Reset" Command="{Binding ResetBrightnessCommand}"/>
+                            <Slider Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" 
+                                    Minimum="-1" Maximum="1" Value="{Binding BrightnessValue, Mode=TwoWay}"
+                                    TickFrequency="0.1" IsSnapToTickEnabled="False" Margin="0,5,0,10"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Contrast:" Style="{StaticResource LabelStyle}"/>
+                            <Button Grid.Row="2" Grid.Column="1" Content="Reset" Command="{Binding ResetContrastCommand}"/>
+                            <Slider Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" 
+                                    Minimum="0" Maximum="4" Value="{Binding ContrastValue, Mode=TwoWay}"
+                                    TickFrequency="0.1" IsSnapToTickEnabled="False" Margin="0,5,0,5"/>
+                        </Grid>
+                    </Expander>
+
                     <ListView x:Name="ImageThumbnailsList" ItemsSource="{Binding ImageThumbnails}" SelectedItem="{Binding SelectedImage, Mode=TwoWay}" Background="#3E3E42" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" Margin="0,5,0,0">
                         <ListView.ItemTemplate>
                             <DataTemplate>
@@ -150,23 +174,11 @@
                 <Button Content="Rotate Right" Command="{Binding RotateRightCommand}" Margin="2"/>
             </StackPanel>
 
-            <!-- =================================================================== -->
-            <!-- ==   UPDATED: New button layout with tooltips for save actions   == -->
-            <!-- =================================================================== -->
             <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="10">
                 <Button Content="Run AI Analysis" Command="{Binding RunAiAnalysisCommand}" Padding="10,5" Margin="5"/>
-
-                <Button Content="Save" 
-                        Command="{Binding SaveOnlyCommand}" 
-                        Padding="10,5" Margin="20,5,5,5"
-                        ToolTip="Save all changes and export the full report. You will remain on this screen."/>
-
-                <Button Content="Save and Finish" 
-                        Command="{Binding FinishEditingCommand}" 
-                        Padding="10,5" Margin="5" FontWeight="Bold"
-                        ToolTip="Save all changes, export the full report, and return to the project hub."/>
+                <Button Content="Save" Command="{Binding SaveOnlyCommand}" Padding="10,5" Margin="20,5,5,5" ToolTip="Save all changes and export the full report. You will remain on this screen."/>
+                <Button Content="Save and Finish" Command="{Binding FinishEditingCommand}" Padding="10,5" Margin="5" FontWeight="Bold" ToolTip="Save all changes, export the full report, and return to the project hub."/>
             </StackPanel>
         </Grid>
-
     </Grid>
 </UserControl>

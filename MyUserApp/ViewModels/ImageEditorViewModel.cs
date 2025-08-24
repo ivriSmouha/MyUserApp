@@ -24,6 +24,7 @@ namespace MyUserApp.ViewModels
         private readonly Stack<IUndoableCommand> _undoStack = new Stack<IUndoableCommand>();
         private readonly Stack<IUndoableCommand> _redoStack = new Stack<IUndoableCommand>();
         private readonly Dictionary<string, ObservableCollection<AnnotationModel>> _sessionAnnotations = new Dictionary<string, ObservableCollection<AnnotationModel>>();
+        private readonly Dictionary<string, ImageAdjustmentModel> _sessionAdjustments = new Dictionary<string, ImageAdjustmentModel>();
         private enum InteractionMode { None, Drawing, Panning }
         private InteractionMode _currentMode = InteractionMode.None;
         private SKPoint _panStartPoint;
@@ -67,6 +68,50 @@ namespace MyUserApp.ViewModels
         public bool ShowAiAnnotations { get => _showAiAnnotations; set { _showAiAnnotations = value; OnPropertyChanged(); InvalidateCanvas(); } }
         #endregion
 
+        #region Image Adjustment Properties
+        public float BrightnessValue
+        {
+            get
+            {
+                if (SelectedImage == null || !_sessionAdjustments.ContainsKey(SelectedImage)) return 0f;
+                return _sessionAdjustments[SelectedImage].Brightness;
+            }
+            set
+            {
+                if (SelectedImage == null) return;
+                if (!_sessionAdjustments.ContainsKey(SelectedImage))
+                    _sessionAdjustments[SelectedImage] = new ImageAdjustmentModel();
+
+                if (_sessionAdjustments[SelectedImage].Brightness == value) return;
+                _sessionAdjustments[SelectedImage].Brightness = value;
+                OnPropertyChanged();
+                InvalidateCanvas();
+                SetDirty();
+            }
+        }
+
+        public float ContrastValue
+        {
+            get
+            {
+                if (SelectedImage == null || !_sessionAdjustments.ContainsKey(SelectedImage)) return 1f;
+                return _sessionAdjustments[SelectedImage].Contrast;
+            }
+            set
+            {
+                if (SelectedImage == null) return;
+                if (!_sessionAdjustments.ContainsKey(SelectedImage))
+                    _sessionAdjustments[SelectedImage] = new ImageAdjustmentModel();
+
+                if (_sessionAdjustments[SelectedImage].Contrast == value) return;
+                _sessionAdjustments[SelectedImage].Contrast = value;
+                OnPropertyChanged();
+                InvalidateCanvas();
+                SetDirty();
+            }
+        }
+        #endregion
+
         #region Project Details Dropdown Sources
         public ObservableCollection<string> AircraftTypes { get; }
         public ObservableCollection<string> TailNumbers { get; }
@@ -106,6 +151,8 @@ namespace MyUserApp.ViewModels
         public ICommand AddImagesCommand { get; }
         public ICommand DeleteImageCommand { get; }
         public ICommand SaveOnlyCommand { get; }
+        public ICommand ResetBrightnessCommand { get; }
+        public ICommand ResetContrastCommand { get; }
         #endregion
 
         public event Action OnFinished;
@@ -125,6 +172,11 @@ namespace MyUserApp.ViewModels
                 }
             }
 
+            if (report.AdjustmentsByImage != null)
+            {
+                _sessionAdjustments = new Dictionary<string, ImageAdjustmentModel>(report.AdjustmentsByImage);
+            }
+
             var options = OptionsService.Instance.Options;
             AircraftTypes = new ObservableCollection<string>(options.AircraftTypes);
             TailNumbers = new ObservableCollection<string>(options.TailNumbers);
@@ -141,6 +193,8 @@ namespace MyUserApp.ViewModels
             RotateRightCommand = new RelayCommand(_ => Rotate(90));
             AddImagesCommand = new RelayCommand(AddImages);
             DeleteImageCommand = new RelayCommand(async _ => await DeleteSelectedImageAsync(), _ => !string.IsNullOrEmpty(SelectedImage));
+            ResetBrightnessCommand = new RelayCommand(_ => BrightnessValue = 0f, _ => SelectedImage != null);
+            ResetContrastCommand = new RelayCommand(_ => ContrastValue = 1f, _ => SelectedImage != null);
 
             FinishEditingCommand = new RelayCommand(async _ => await HandleFinishEditingAsync());
             SaveOnlyCommand = new RelayCommand(async _ => await SaveAndExportFullReportAsync());
@@ -189,6 +243,9 @@ namespace MyUserApp.ViewModels
             SelectedAnnotation = null;
             ClearHistory();
             ResetView(null);
+
+            OnPropertyChanged(nameof(BrightnessValue));
+            OnPropertyChanged(nameof(ContrastValue));
             OnPropertyChanged(nameof(CurrentAnnotations));
         }
 
@@ -202,6 +259,8 @@ namespace MyUserApp.ViewModels
                     _report.AnnotationsByImage[entry.Key] = entry.Value.ToList();
                 }
             }
+            _report.AdjustmentsByImage = new Dictionary<string, ImageAdjustmentModel>(_sessionAdjustments);
+
             ReportService.Instance.UpdateReport(_report);
 
             if (!_report.ImagePaths.Any())
@@ -230,13 +289,23 @@ namespace MyUserApp.ViewModels
                 foreach (var imagePath in _report.ImagePaths)
                 {
                     if (!File.Exists(imagePath)) continue;
+
+                    _sessionAdjustments.TryGetValue(imagePath, out var adjustments);
+                    float brightness = adjustments?.Brightness ?? 0f;
+                    float contrast = adjustments?.Contrast ?? 1f;
+
                     using (var originalBitmap = SKBitmap.Decode(imagePath))
                     {
                         if (originalBitmap == null) continue;
                         using (var exportSurface = SKSurface.Create(new SKImageInfo(originalBitmap.Width, originalBitmap.Height)))
                         {
                             var canvas = exportSurface.Canvas;
-                            canvas.DrawBitmap(originalBitmap, 0, 0);
+                            using (var bitmapPaint = new SKPaint())
+                            {
+                                bitmapPaint.ColorFilter = CreateColorFilter(brightness, contrast);
+                                canvas.DrawBitmap(originalBitmap, 0, 0, bitmapPaint);
+                            }
+
                             if (_sessionAnnotations.TryGetValue(imagePath, out var annotationsForThisImage) && annotationsForThisImage.Any())
                             {
                                 using (var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke })
@@ -319,6 +388,38 @@ namespace MyUserApp.ViewModels
             IsDirty = true;
         }
 
+        private SKColorFilter CreateColorFilter(float brightness, float contrast)
+        {
+            if (brightness == 0f && contrast == 1f)
+            {
+                return null;
+            }
+
+            float b = brightness;
+            var brightnessMatrix = new float[]
+            {
+                1, 0, 0, 0, b,
+                0, 1, 0, 0, b,
+                0, 0, 1, 0, b,
+                0, 0, 0, 1, 0
+            };
+
+            float c = contrast;
+            float t = (1f - c) / 2f;
+            var contrastMatrix = new float[]
+            {
+                c, 0, 0, 0, t,
+                0, c, 0, 0, t,
+                0, 0, c, 0, t,
+                0, 0, 0, 1, 0
+            };
+
+            return SKColorFilter.CreateCompose(
+                SKColorFilter.CreateColorMatrix(brightnessMatrix),
+                SKColorFilter.CreateColorMatrix(contrastMatrix)
+            );
+        }
+
         private void AddImages(object obj)
         {
             DeleteExistingExportFolder();
@@ -374,6 +475,7 @@ namespace MyUserApp.ViewModels
 
             _report.ImagePaths.Remove(imageToDelete);
             _sessionAnnotations.Remove(imageToDelete);
+            _sessionAdjustments.Remove(imageToDelete);
             ImageThumbnails.Remove(imageToDelete);
 
             try
@@ -453,7 +555,13 @@ namespace MyUserApp.ViewModels
             canvas.Translate(_panOffset.X, _panOffset.Y);
             canvas.RotateDegrees(_rotationDegrees);
             canvas.Scale(_zoomScale);
-            canvas.DrawBitmap(_currentBitmap, -_currentBitmap.Width / 2f, -_currentBitmap.Height / 2f);
+
+            using (var bitmapPaint = new SKPaint())
+            {
+                bitmapPaint.ColorFilter = CreateColorFilter(BrightnessValue, ContrastValue);
+                canvas.DrawBitmap(_currentBitmap, -_currentBitmap.Width / 2f, -_currentBitmap.Height / 2f, bitmapPaint);
+            }
+
             using (var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke })
             {
                 var annotationsToDraw = (CurrentAnnotations ?? Enumerable.Empty<AnnotationModel>()).Where(ShouldShowAnnotation).ToList();
@@ -476,9 +584,6 @@ namespace MyUserApp.ViewModels
             canvas.Restore();
         }
 
-        // ===================================================================
-        // ==     UPDATED: This method now contains the role-aware logic    ==
-        // ===================================================================
         public void StartDrawing(float x, float y)
         {
             SKPoint? imagePoint = ScreenToImageCoordinates(new SKPoint(x, y));
@@ -488,22 +593,14 @@ namespace MyUserApp.ViewModels
 
             if (clickedAnnotation != null)
             {
-                // Rule A: Self-Interaction (e.g., Inspector clicks on an Inspector's circle).
-                // If the author of the clicked annotation is the SAME as the current user, select it.
                 if (clickedAnnotation.Author == _currentUserRole)
                 {
                     SelectedAnnotation = clickedAnnotation;
                     _currentMode = InteractionMode.None;
-                    return; // Stop here, we are in selection mode.
+                    return;
                 }
-                // Rule B: Cross-Interaction (e.g., Verifier clicks on an Inspector's circle).
-                // If the author is DIFFERENT, we IGNORE the hit and proceed to draw a new circle.
-                // The code will simply "fall through" this if-block and continue to the drawing logic below.
             }
 
-            // This code now runs if:
-            // 1. The user clicked on an empty space (clickedAnnotation was null).
-            // 2. The user performed a "cross-interaction" hit.
             SelectedAnnotation = null;
             _currentMode = InteractionMode.Drawing;
             _drawStartPoint = imagePoint.Value;
