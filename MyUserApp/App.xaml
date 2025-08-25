@@ -25,20 +25,10 @@
                 <views:ReportEntryView/>
             </DataTemplate>
 
-            <!-- 
-            ===================================================================
-            ==                          ADD THIS BLOCK                         ==
-            ===================================================================
-            -->
             <DataTemplate DataType="{x:Type viewModels:ImageEditorViewModel}">
                 <views:ImageEditorView/>
             </DataTemplate>
-            <!-- 
-            ===================================================================
-            -->
-
-            <!-- Your other resources like converters might be here -->
-
+           
         </ResourceDictionary>
     </Application.Resources>
 </Application>

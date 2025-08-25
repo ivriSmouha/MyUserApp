@@ -12,7 +12,8 @@ namespace MyUserApp.Models
     {
         public Guid ReportId { get; set; } = Guid.NewGuid();
         public string ProjectName { get; set; }
-        public DateTime Timestamp { get; set; } = DateTime.Now;
+        public DateTime CreationDate { get; set; } = DateTime.Now;
+        public DateTime LastModifiedDate { get; set; } = DateTime.Now;
         public string AircraftType { get; set; }
         public string TailNumber { get; set; }
         public string AircraftSide { get; set; }

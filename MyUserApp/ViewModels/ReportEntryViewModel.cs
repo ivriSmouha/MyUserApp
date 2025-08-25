@@ -112,6 +112,7 @@ namespace MyUserApp.ViewModels
                 }
             }
 
+            var now = DateTime.Now;
             var newReport = new InspectionReportModel
             {
                 ProjectName = projectName,
@@ -121,7 +122,9 @@ namespace MyUserApp.ViewModels
                 Reason = SelectedReason,
                 InspectorName = SelectedInspector,
                 VerifierName = SelectedVerifier,
-                ImagePaths = newImagePaths
+                ImagePaths = newImagePaths,
+                CreationDate = now,
+                LastModifiedDate = now
             };
 
             ReportService.Instance.AddReport(newReport);

@@ -167,6 +167,18 @@
             <skia:SKElement x:Name="SkiaElement" PaintSurface="CanvasView_PaintSurface" MouseWheel="CanvasView_MouseWheel" MouseLeftButtonDown="CanvasView_MouseLeftButtonDown" MouseMove="CanvasView_MouseMove" MouseLeftButtonUp="CanvasView_MouseLeftButtonUp" KeyDown="SkiaElement_KeyDown" Focusable="True"/>
 
             <StackPanel Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="10">
+
+                <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="3" Padding="5" Margin="0,0,15,0"
+                        Visibility="{Binding IsDualRoleUser, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0">
+                            <Run Text="Active Role:"/>
+                            <Run Text="{Binding ActiveRole, Mode=OneWay}" FontWeight="Bold"/>
+                        </TextBlock>
+                        <Button Content="Switch" Command="{Binding SwitchRoleCommand}"/>
+                    </StackPanel>
+                </Border>
+
                 <Button Content="Undo" Command="{Binding UndoCommand}" Margin="2" Width="60" Click="Button_Click"/>
                 <Button Content="Redo" Command="{Binding RedoCommand}" Margin="2" Width="60"/>
                 <Button Content="Reset View" Command="{Binding ResetViewCommand}" Margin="2,2,10,2"/>

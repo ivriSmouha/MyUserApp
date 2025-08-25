@@ -141,6 +141,28 @@ namespace MyUserApp.ViewModels
         }
         #endregion
 
+        #region Role Switching Properties
+        /// <summary>
+        /// Indicates if the current user is assigned as both Inspector and Verifier for this report.
+        /// </summary>
+        public bool IsDualRoleUser { get; }
+
+        private AuthorType _activeRole;
+        /// <summary>
+        /// The currently active role for the user in the editor (Inspector or Verifier).
+        /// This is used for creating new annotations when a user has dual roles.
+        /// </summary>
+        public AuthorType ActiveRole
+        {
+            get => _activeRole;
+            private set
+            {
+                _activeRole = value;
+                OnPropertyChanged();
+            }
+        }
+        #endregion
+
         #endregion
 
         #region Commands
@@ -158,6 +180,7 @@ namespace MyUserApp.ViewModels
         public ICommand SaveOnlyCommand { get; }
         public ICommand ResetBrightnessCommand { get; }
         public ICommand ResetContrastCommand { get; }
+        public ICommand SwitchRoleCommand { get; }
         #endregion
 
         public event Action OnFinished;
@@ -167,6 +190,16 @@ namespace MyUserApp.ViewModels
         {
             _report = report ?? throw new ArgumentNullException(nameof(report));
             _currentUserRole = role;
+            ActiveRole = role;
+
+            if (!string.IsNullOrEmpty(report.InspectorName) &&
+                !string.IsNullOrEmpty(report.VerifierName) &&
+                report.InspectorName == user.Username &&
+                report.VerifierName == user.Username)
+            {
+                IsDualRoleUser = true;
+            }
+
             ImageThumbnails = new ObservableCollection<string>(report.ImagePaths);
 
             if (report.AnnotationsByImage != null)
@@ -201,6 +234,7 @@ namespace MyUserApp.ViewModels
             ResetBrightnessCommand = new RelayCommand(_ => BrightnessValue = 0f, _ => SelectedImage != null);
             ResetContrastCommand = new RelayCommand(_ => ContrastValue = 1f, _ => SelectedImage != null);
 
+            SwitchRoleCommand = new RelayCommand(SwitchActiveRole, _ => IsDualRoleUser);
             FinishEditingCommand = new RelayCommand(async _ => await HandleFinishEditingAsync());
             SaveOnlyCommand = new RelayCommand(async _ => await SaveAndExportFullReportAsync());
             SaveCommand = new RelayCommand(async _ => await SaveAndExportFullReportAsync());
@@ -265,6 +299,8 @@ namespace MyUserApp.ViewModels
                 }
             }
             _report.AdjustmentsByImage = new Dictionary<string, ImageAdjustmentModel>(_sessionAdjustments);
+
+            _report.LastModifiedDate = DateTime.Now;
 
             ReportService.Instance.UpdateReport(_report);
 
@@ -598,24 +634,51 @@ namespace MyUserApp.ViewModels
 
             if (clickedAnnotation != null)
             {
-                if (clickedAnnotation.Author == _currentUserRole)
+                // Case 1: Clicked on an annotation of a DIFFERENT role (Inspector/Verifier). This is the trigger for nesting.
+                bool isNestablePair = (clickedAnnotation.Author == AuthorType.Inspector && ActiveRole == AuthorType.Verifier) ||
+                                      (clickedAnnotation.Author == AuthorType.Verifier && ActiveRole == AuthorType.Inspector);
+
+                if (isNestablePair)
+                {
+                    _currentMode = InteractionMode.Drawing;
+                    // The "start point" for the radius calculation is the center of the host annotation.
+                    _interactionStartPoint = new SKPoint((float)clickedAnnotation.CenterX, (float)clickedAnnotation.CenterY);
+
+                    _previewAnnotation = new AnnotationModel
+                    {
+                        Author = ActiveRole,
+                        CenterX = clickedAnnotation.CenterX, // Center the new annotation on the host.
+                        CenterY = clickedAnnotation.CenterY,
+                        Radius = 0
+                    };
+
+                    // We immediately call UpdateInteraction to calculate the initial radius from the center to the click position.
+                    UpdateInteraction(x, y);
+                    return; // Nesting drawing has been initiated.
+                }
+
+                // Case 2: Clicked on an annotation that is editable by the current user. This is for selection.
+                // This logic also implicitly blocks nesting annotations of the same color.
+                if (IsAnnotationEditable(clickedAnnotation))
                 {
                     SelectedAnnotation = clickedAnnotation;
                     _currentMode = InteractionMode.None;
                     return;
                 }
+
+                // Case 3: Clicked on a non-editable annotation (e.g., AI or another user's). Do nothing.
+                _currentMode = InteractionMode.None;
+                return;
             }
 
+            // Case 4: Clicked on an empty area. Standard drawing logic.
             SelectedAnnotation = null;
             _currentMode = InteractionMode.Drawing;
-            // ===================================================================
-            // ==      UPDATED: Use the unified _interactionStartPoint field.   ==
-            // ===================================================================
             _interactionStartPoint = imagePoint.Value;
 
             _previewAnnotation = new AnnotationModel
             {
-                Author = _currentUserRole,
+                Author = ActiveRole,
                 CenterX = _interactionStartPoint.X,
                 CenterY = _interactionStartPoint.Y,
                 Radius = 0
@@ -752,7 +815,7 @@ namespace MyUserApp.ViewModels
 
         public void DeleteSelectedAnnotation(object _ = null)
         {
-            if (SelectedAnnotation == null) return;
+            if (SelectedAnnotation == null || !IsAnnotationEditable(SelectedAnnotation)) return;
             ExecuteCommand(new DeleteAnnotationCommand(CurrentAnnotations, SelectedAnnotation));
             SelectedAnnotation = null;
         }
@@ -862,6 +925,32 @@ namespace MyUserApp.ViewModels
                 if (dist <= relativeHitRadius) return annotation;
             }
             return null;
+        }
+
+        private void SwitchActiveRole(object obj)
+        {
+            if (ActiveRole == AuthorType.Inspector)
+            {
+                ActiveRole = AuthorType.Verifier;
+            }
+            else
+            {
+                ActiveRole = AuthorType.Inspector;
+            }
+        }
+
+        private bool IsAnnotationEditable(AnnotationModel annotation)
+        {
+            if (annotation == null) return false;
+
+            if (IsDualRoleUser)
+            {
+                return annotation.Author == AuthorType.Inspector || annotation.Author == AuthorType.Verifier;
+            }
+            else
+            {
+                return annotation.Author == _currentUserRole;
+            }
         }
 
         public void Dispose()

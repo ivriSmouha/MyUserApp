@@ -19,28 +19,55 @@ namespace MyUserApp.ViewModels
         /// </summary>
         public AuthorType CurrentUserRole { get; }
 
+        /// <summary>
+        /// Gets a value indicating whether the current user has both Inspector and Verifier roles on this project.
+        /// </summary>
+        public bool IsDualRole { get; }
+
+
         // --- Properties that delegate to the underlying Report model for easy data binding ---
 
         public string ProjectName => Report.ProjectName;
-        public DateTime Timestamp => Report.Timestamp;
+        public DateTime CreationDate => Report.CreationDate;
+        public DateTime LastModifiedDate => Report.LastModifiedDate;
         public string InspectorName => Report.InspectorName;
+        public string VerifierName => Report.VerifierName;
 
         /// <summary>
         /// A string representation of the user's role for display in the UI.
         /// </summary>
-        public string RoleDisplayString => CurrentUserRole.ToString();
+        public string RoleDisplayString
+        {
+            get
+            {
+                if (IsDualRole)
+                {
+                    return "Inspector / Verifier";
+                }
+                return CurrentUserRole.ToString();
+            }
+        }
 
         public ProjectDisplayViewModel(InspectionReportModel report, UserModel currentUser)
         {
             Report = report;
 
-            // Determine the current user's role for this specific report.
-            if (report.InspectorName == currentUser.Username)
+            bool isInspector = report.InspectorName == currentUser.Username;
+            bool isVerifier = report.VerifierName == currentUser.Username;
+
+            if (isInspector && isVerifier)
             {
+                IsDualRole = true;
+                CurrentUserRole = AuthorType.Inspector; // Default role for display
+            }
+            else if (isInspector)
+            {
+                IsDualRole = false;
                 CurrentUserRole = AuthorType.Inspector;
             }
-            else if (report.VerifierName == currentUser.Username)
+            else if (isVerifier)
             {
+                IsDualRole = false;
                 CurrentUserRole = AuthorType.Verifier;
             }
         }

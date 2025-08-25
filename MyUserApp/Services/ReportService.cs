@@ -42,7 +42,7 @@ namespace MyUserApp.Services
             SaveReports();
         }
 
-        
+
         /// <summary>
         /// Finds an existing report by its ID and replaces it with the updated version.
         /// This is crucial for saving annotations.
@@ -65,13 +65,13 @@ namespace MyUserApp.Services
             if (string.IsNullOrEmpty(username)) return new List<InspectionReportModel>();
             return _allReports
                 .Where(r => r.InspectorName == username || r.VerifierName == username)
-                .OrderByDescending(r => r.Timestamp)
+                .OrderByDescending(r => r.LastModifiedDate)
                 .ToList();
         }
 
         public List<InspectionReportModel> GetAllReports()
         {
-            return _allReports.OrderByDescending(r => r.Timestamp).ToList();
+            return _allReports.OrderByDescending(r => r.LastModifiedDate).ToList();
         }
     }
 }

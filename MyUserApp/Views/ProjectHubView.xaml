@@ -14,13 +14,12 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <StackPanel Grid.Row="0">
-            <StackPanel Orientation="Horizontal">
+        <DockPanel Grid.Row="0">
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                 <TextBlock Text="{Binding WelcomeMessage}" FontSize="24" FontWeight="Bold"/>
                 <Button Content="Logout" Command="{Binding LogoutCommand}" Margin="50,0,0,0" Width="80" VerticalAlignment="Center"/>
             </StackPanel>
-            <TextBlock Text="You can start a new project or view one of your recent projects below." Margin="0,5,0,0" Foreground="Gray"/>
-        </StackPanel>
+        </DockPanel>
 
         <!-- Main Content Area -->
         <Grid Grid.Row="1" Margin="0,20,0,0">
@@ -37,44 +36,58 @@
             </StackPanel>
 
             <!-- Recent Projects Column -->
-            <GroupBox Grid.Column="1" Header="Recent Projects">
-                <ListView ItemsSource="{Binding RecentProjects}" SelectedItem="{Binding SelectedProject}">
+            <DockPanel Grid.Column="1">
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Top" Margin="5,0,5,5">
+                    <TextBlock Text="Filter:" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                    <TextBox Width="200" Margin="5,0" Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"/>
+                </StackPanel>
 
-                    <ListView.ItemContainerStyle>
-                        <Style TargetType="ListViewItem">
-                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <DataGrid ItemsSource="{Binding ProjectsView}" 
+                          SelectedItem="{Binding SelectedProject}"
+                          AutoGenerateColumns="False" 
+                          IsReadOnly="True" 
+                          SelectionMode="Single"
+                          CanUserSortColumns="True">
+
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
                             <EventSetter Event="MouseDoubleClick" Handler="ListViewItem_MouseDoubleClick" />
-                            <!-- ======================================================= -->
-                            <!-- ==   NEW: Style Triggers for coloring the rows       == -->
-                            <!-- ======================================================= -->
                             <Style.Triggers>
-                                <!-- If the user's role is Inspector, set a blue border -->
-                                <DataTrigger Binding="{Binding CurrentUserRole}" Value="{x:Static models:AuthorType.Inspector}">
+                                <DataTrigger Binding="{Binding IsDualRole}" Value="True">
+                                    <Setter Property="BorderBrush" Value="MediumOrchid"/>
+                                    <Setter Property="BorderThickness" Value="2,1,1,1"/>
+                                </DataTrigger>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding CurrentUserRole}" Value="Inspector"/>
+                                        <Condition Binding="{Binding IsDualRole}" Value="False"/>
+                                    </MultiDataTrigger.Conditions>
                                     <Setter Property="BorderBrush" Value="DodgerBlue"/>
                                     <Setter Property="BorderThickness" Value="2,1,1,1"/>
-                                </DataTrigger>
-                                <!-- If the user's role is Verifier, set a yellow border -->
-                                <DataTrigger Binding="{Binding CurrentUserRole}" Value="{x:Static models:AuthorType.Verifier}">
+                                </MultiDataTrigger>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding CurrentUserRole}" Value="Verifier"/>
+                                        <Condition Binding="{Binding IsDualRole}" Value="False"/>
+                                    </MultiDataTrigger.Conditions>
                                     <Setter Property="BorderBrush" Value="Goldenrod"/>
                                     <Setter Property="BorderThickness" Value="2,1,1,1"/>
-                                </DataTrigger>
+                                </MultiDataTrigger>
                             </Style.Triggers>
                         </Style>
-                    </ListView.ItemContainerStyle>
+                    </DataGrid.RowStyle>
 
-                    <ListView.View>
-                        <GridView>
-                            <!-- ======================================================= -->
-                            <!-- ==       NEW: "Your Role" column added               == -->
-                            <!-- ======================================================= -->
-                            <GridViewColumn Header="Your Role" DisplayMemberBinding="{Binding RoleDisplayString}" Width="100"/>
-                            <GridViewColumn Header="Project Name" DisplayMemberBinding="{Binding ProjectName}" Width="250"/>
-                            <GridViewColumn Header="Inspector" DisplayMemberBinding="{Binding InspectorName}" Width="120"/>
-                            <GridViewColumn Header="Date" DisplayMemberBinding="{Binding Timestamp, StringFormat='g'}" Width="150"/>
-                        </GridView>
-                    </ListView.View>
-                </ListView>
-            </GroupBox>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Your Role" Binding="{Binding RoleDisplayString}" SortMemberPath="RoleDisplayString" Width="140"/>
+                        <DataGridTextColumn Header="Project Name" Binding="{Binding ProjectName}" SortMemberPath="ProjectName" Width="*"/>
+                        <DataGridTextColumn Header="Inspector" Binding="{Binding InspectorName}" SortMemberPath="InspectorName" Width="120"/>
+                        <DataGridTextColumn Header="Verifier" Binding="{Binding VerifierName}" SortMemberPath="VerifierName" Width="120"/>
+                        <DataGridTextColumn Header="Created" Binding="{Binding CreationDate, StringFormat='g'}" SortMemberPath="CreationDate" Width="130"/>
+                        <DataGridTextColumn Header="Last Modified" Binding="{Binding LastModifiedDate, StringFormat='g'}" SortMemberPath="LastModifiedDate" Width="130"/>
+                    </DataGrid.Columns>
+
+                </DataGrid>
+            </DockPanel>
 
             <!-- Image Preview Column -->
             <GroupBox Grid.Column="2" Header="Image Preview" Margin="20,0,0,0">
@@ -83,7 +96,7 @@
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <Image Grid.Row="0" Source="{Binding PreviewImagePath}" Stretch="Uniform" Margin="5"/>
+                    <Image Grid.Row="0" Source="{Binding PreviewImageSource}" Stretch="Uniform" Margin="5"/>
                     <Grid Grid.Row="1" Margin="5">
                         <Grid.Style>
                             <Style TargetType="{x:Type Grid}">
