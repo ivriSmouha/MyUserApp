@@ -1,7 +1,7 @@
-﻿using MyUserApp.Models;
+﻿// File: MyUserApp/ViewModels/AdminPanelViewModel.cs
+using MyUserApp.Models;
 using MyUserApp.Services;
 using System;
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Data;
@@ -9,10 +9,6 @@ using System.Windows.Input;
 
 namespace MyUserApp.ViewModels
 {
-    /// <summary>
-    /// ViewModel for the Admin Panel. Manages users and application-wide options 
-    /// such as aircraft types, tail numbers, sides, and reasons.
-    /// </summary>
     public class AdminPanelViewModel : BaseViewModel
     {
         // --- User Management Properties ---
@@ -26,7 +22,7 @@ namespace MyUserApp.ViewModels
             {
                 _userFilterText = value;
                 OnPropertyChanged();
-                UsersView.Refresh(); // Trigger the filter to re-evaluate
+                UsersView.Refresh();
             }
         }
 
@@ -68,10 +64,8 @@ namespace MyUserApp.ViewModels
         public ICommand AddTailNumberCommand { get; }
         public ICommand DeleteTailNumberCommand { get; }
 
-
         // --- Events ---
         public event Action OnLogoutRequested;
-
 
         public AdminPanelViewModel()
         {
@@ -86,24 +80,20 @@ namespace MyUserApp.ViewModels
             // --- Options Management ---
             AddAircraftTypeCommand = new RelayCommand(AddAircraftType, _ => !string.IsNullOrEmpty(NewAircraftType));
             DeleteAircraftTypeCommand = new RelayCommand(DeleteAircraftType);
-
             AddAircraftSideCommand = new RelayCommand(AddAircraftSide, _ => !string.IsNullOrEmpty(NewAircraftSide));
             DeleteAircraftSideCommand = new RelayCommand(DeleteAircraftSide);
-
             AddReasonCommand = new RelayCommand(AddReason, _ => !string.IsNullOrEmpty(NewReason));
             DeleteReasonCommand = new RelayCommand(DeleteReason);
-
             AddTailNumberCommand = new RelayCommand(AddTailNumber, _ => !string.IsNullOrEmpty(NewTailNumber));
             DeleteTailNumberCommand = new RelayCommand(DeleteTailNumber);
         }
 
         #region User Management Methods
-
         private bool FilterUsers(object item)
         {
             if (string.IsNullOrWhiteSpace(UserFilterText))
             {
-                return true; // No filter text, show all users.
+                return true;
             }
             if (item is UserModel user)
             {
@@ -118,8 +108,6 @@ namespace MyUserApp.ViewModels
         {
             var newUser = new UserModel { Username = this.NewUsername, Password = this.NewPassword, IsAdmin = this.NewUserIsAdmin };
             UserService.Instance.AddUser(newUser);
-
-            // Reset fields
             NewUsername = "";
             NewPassword = "";
             NewUserIsAdmin = false;
@@ -129,18 +117,13 @@ namespace MyUserApp.ViewModels
         {
             if (obj is UserModel userToDelete)
             {
-                // Step 1: Get the counts for the confirmation message without changing data.
                 var (inspectorCount, verifierCount) = ReportService.Instance.GetProjectCountsForUser(userToDelete.Username);
-
                 string message = $"Are you sure you want to delete the user '{userToDelete.Username}'?\n\n" +
                                  $"This will reassign all of their projects to the '{UserService.DeletedUserUsername}' account.\n" +
                                  $"Projects affected: {inspectorCount} as Inspector, {verifierCount} as Verifier.\n\n" +
                                  "This action cannot be undone.";
-
-                // Step 2: Show the confirmation box.
                 if (MessageBox.Show(message, "Confirm Deletion", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
                 {
-                    // Step 3: If confirmed, execute the deletion and reassignment.
                     UserService.Instance.DeleteUserAndReassignProjects(userToDelete);
                 }
             }
@@ -148,8 +131,6 @@ namespace MyUserApp.ViewModels
         #endregion
 
         #region Options Management Methods
-
-        // Aircraft Types
         private void AddAircraftType(object obj)
         {
             OptionsService.Instance.AddAircraftType(NewAircraftType);
@@ -164,8 +145,6 @@ namespace MyUserApp.ViewModels
                 OnPropertyChanged(nameof(AppOptions));
             }
         }
-
-        // Aircraft Sides
         private void AddAircraftSide(object obj)
         {
             OptionsService.Instance.AddAircraftSide(NewAircraftSide);
@@ -180,8 +159,6 @@ namespace MyUserApp.ViewModels
                 OnPropertyChanged(nameof(AppOptions));
             }
         }
-
-        // Reasons
         private void AddReason(object obj)
         {
             OptionsService.Instance.AddReason(NewReason);
@@ -196,14 +173,12 @@ namespace MyUserApp.ViewModels
                 OnPropertyChanged(nameof(AppOptions));
             }
         }
-
         private void AddTailNumber(object obj)
         {
             OptionsService.Instance.AddTailNumber(NewTailNumber);
             NewTailNumber = "";
             OnPropertyChanged(nameof(AppOptions));
         }
-
         private void DeleteTailNumber(object obj)
         {
             if (obj is string tailNumberToDelete)

@@ -28,9 +28,6 @@ namespace MyUserApp.ViewModels
         private enum InteractionMode { None, Drawing, Panning }
         private InteractionMode _currentMode = InteractionMode.None;
 
-        // ===================================================================
-        // ==  UPDATED: Replaced _panStartPoint with two more robust fields.  ==
-        // ===================================================================
         private SKPoint _interactionStartPoint; // For both pan and draw start positions
         private SKPoint _panStartOffset; // Stores the offset at the beginning of a pan
 
@@ -142,25 +139,9 @@ namespace MyUserApp.ViewModels
         #endregion
 
         #region Role Switching Properties
-        /// <summary>
-        /// Indicates if the current user is assigned as both Inspector and Verifier for this report.
-        /// </summary>
         public bool IsDualRoleUser { get; }
-
         private AuthorType _activeRole;
-        /// <summary>
-        /// The currently active role for the user in the editor (Inspector or Verifier).
-        /// This is used for creating new annotations when a user has dual roles.
-        /// </summary>
-        public AuthorType ActiveRole
-        {
-            get => _activeRole;
-            private set
-            {
-                _activeRole = value;
-                OnPropertyChanged();
-            }
-        }
+        public AuthorType ActiveRole { get => _activeRole; private set { _activeRole = value; OnPropertyChanged(); } }
         #endregion
 
         #endregion
@@ -625,40 +606,46 @@ namespace MyUserApp.ViewModels
             canvas.Restore();
         }
 
+        // ===================================================================
+        // ==     UPDATED: Added boundary checks to prevent drawing outside the image.
+        // ===================================================================
         public void StartDrawing(float x, float y)
         {
             SKPoint? imagePoint = ScreenToImageCoordinates(new SKPoint(x, y));
             if (imagePoint == null) return;
 
+            // NEW: Boundary check. If the click is outside the relative 0-1 range, ignore it.
+            if (imagePoint.Value.X < 0 || imagePoint.Value.X > 1 ||
+                imagePoint.Value.Y < 0 || imagePoint.Value.Y > 1)
+            {
+                _currentMode = InteractionMode.None; // Ensure we don't enter drawing mode.
+                return;
+            }
+
             AnnotationModel clickedAnnotation = CheckForAnnotationHit(imagePoint.Value);
 
             if (clickedAnnotation != null)
             {
-                // Case 1: Clicked on an annotation of a DIFFERENT role (Inspector/Verifier). This is the trigger for nesting.
                 bool isNestablePair = (clickedAnnotation.Author == AuthorType.Inspector && ActiveRole == AuthorType.Verifier) ||
                                       (clickedAnnotation.Author == AuthorType.Verifier && ActiveRole == AuthorType.Inspector);
 
                 if (isNestablePair)
                 {
                     _currentMode = InteractionMode.Drawing;
-                    // The "start point" for the radius calculation is the center of the host annotation.
                     _interactionStartPoint = new SKPoint((float)clickedAnnotation.CenterX, (float)clickedAnnotation.CenterY);
 
                     _previewAnnotation = new AnnotationModel
                     {
                         Author = ActiveRole,
-                        CenterX = clickedAnnotation.CenterX, // Center the new annotation on the host.
+                        CenterX = clickedAnnotation.CenterX,
                         CenterY = clickedAnnotation.CenterY,
                         Radius = 0
                     };
 
-                    // We immediately call UpdateInteraction to calculate the initial radius from the center to the click position.
                     UpdateInteraction(x, y);
-                    return; // Nesting drawing has been initiated.
+                    return;
                 }
 
-                // Case 2: Clicked on an annotation that is editable by the current user. This is for selection.
-                // This logic also implicitly blocks nesting annotations of the same color.
                 if (IsAnnotationEditable(clickedAnnotation))
                 {
                     SelectedAnnotation = clickedAnnotation;
@@ -666,12 +653,10 @@ namespace MyUserApp.ViewModels
                     return;
                 }
 
-                // Case 3: Clicked on a non-editable annotation (e.g., AI or another user's). Do nothing.
                 _currentMode = InteractionMode.None;
                 return;
             }
 
-            // Case 4: Clicked on an empty area. Standard drawing logic.
             SelectedAnnotation = null;
             _currentMode = InteractionMode.Drawing;
             _interactionStartPoint = imagePoint.Value;
@@ -685,9 +670,6 @@ namespace MyUserApp.ViewModels
             };
         }
 
-        // ===================================================================
-        // ==      UPDATED: Rewritten Zoom method for accurate anchoring.   ==
-        // ===================================================================
         public void Zoom(float factor, float anchorX, float anchorY)
         {
             if (_lastCanvasInfo.Width == 0) return;
@@ -696,17 +678,12 @@ namespace MyUserApp.ViewModels
             _zoomScale = Math.Max(0.1f, Math.Min(_zoomScale * factor, 10.0f));
             float scaleRatio = _zoomScale / oldScale;
 
-            // The key to correct zooming is to perform calculations relative to the canvas center,
-            // matching the transformation pipeline in the Draw() method.
             float canvasCenterX = _lastCanvasInfo.Width / 2f;
             float canvasCenterY = _lastCanvasInfo.Height / 2f;
 
-            // Convert the mouse's anchor point and the pan offset to be relative to the center.
             float centeredAnchorX = anchorX - canvasCenterX;
             float centeredAnchorY = anchorY - canvasCenterY;
 
-            // This is the standard formula for point-of-interest zooming.
-            // new_offset = anchor - scale_ratio * (anchor - old_offset)
             float newPanX = centeredAnchorX - scaleRatio * (centeredAnchorX - _panOffset.X);
             float newPanY = centeredAnchorY - scaleRatio * (centeredAnchorY - _panOffset.Y);
 
@@ -714,38 +691,37 @@ namespace MyUserApp.ViewModels
             InvalidateCanvas();
         }
 
-        // ===================================================================
-        // ==     UPDATED: Rewritten StartPan for stable, predictable drag.  ==
-        // ===================================================================
         public void StartPan(float x, float y)
         {
             _currentMode = InteractionMode.Panning;
-            // Store the initial mouse position when the pan begins.
             _interactionStartPoint = new SKPoint(x, y);
-            // Store the current pan offset, so we can calculate the new offset from this starting point.
             _panStartOffset = _panOffset;
         }
 
         // ===================================================================
-        // ==  UPDATED: Rewritten UpdateInteraction for stable pan and draw. ==
+        // ==     UPDATED: Clamped drawing coordinates to image boundaries.
         // ===================================================================
         public void UpdateInteraction(float x, float y)
         {
             switch (_currentMode)
             {
                 case InteractionMode.Panning:
-                    // Calculate the delta (change) from the initial mouse position.
                     float dx = x - _interactionStartPoint.X;
                     float dy = y - _interactionStartPoint.Y;
-                    // The new offset is the offset at the start of the pan plus the delta.
                     _panOffset = new SKPoint(_panStartOffset.X + dx, _panStartOffset.Y + dy);
                     InvalidateCanvas();
                     break;
                 case InteractionMode.Drawing:
                     SKPoint? currentImagePoint = ScreenToImageCoordinates(new SKPoint(x, y));
                     if (currentImagePoint == null || _previewAnnotation == null) return;
-                    double draw_dx = currentImagePoint.Value.X - _interactionStartPoint.X;
-                    double draw_dy = currentImagePoint.Value.Y - _interactionStartPoint.Y;
+
+                    // NEW: Clamp the current point to the image boundaries (0-1 range).
+                    // This prevents the circle from growing if the mouse leaves the image.
+                    float clampedX = Math.Max(0f, Math.Min(1f, currentImagePoint.Value.X));
+                    float clampedY = Math.Max(0f, Math.Min(1f, currentImagePoint.Value.Y));
+
+                    double draw_dx = clampedX - _interactionStartPoint.X;
+                    double draw_dy = clampedY - _interactionStartPoint.Y;
                     _previewAnnotation.Radius = Math.Sqrt(draw_dx * draw_dx + draw_dy * draw_dy);
                     InvalidateCanvas();
                     break;

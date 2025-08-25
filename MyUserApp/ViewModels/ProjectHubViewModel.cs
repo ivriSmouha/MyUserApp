@@ -19,11 +19,9 @@ namespace MyUserApp.ViewModels
         private readonly ObservableCollection<ProjectDisplayViewModel> _recentProjects;
 
         public ICollectionView ProjectsView { get; }
-
         public string WelcomeMessage { get; }
 
         private int _currentImageIndex;
-
         private BitmapSource _previewImageSource;
         public BitmapSource PreviewImageSource { get => _previewImageSource; private set { _previewImageSource = value; OnPropertyChanged(); } }
 
@@ -52,19 +50,21 @@ namespace MyUserApp.ViewModels
             {
                 _filterText = value;
                 OnPropertyChanged();
-                ProjectsView.Refresh(); // Trigger the filter
+                ProjectsView.Refresh();
             }
         }
 
         public ICommand OpenProjectCommand { get; }
-        public event Action<InspectionReportModel, AuthorType> OnOpenProjectRequested;
-
         public ICommand StartNewProjectCommand { get; }
         public ICommand LogoutCommand { get; }
+        public ICommand SwitchThemeCommand { get; }
         public ICommand NextImageCommand { get; }
         public ICommand PreviousImageCommand { get; }
+
+        public event Action<InspectionReportModel, AuthorType> OnOpenProjectRequested;
         public event Action OnLogoutRequested;
         public event Action<UserModel> OnStartNewProjectRequested;
+
         private readonly UserModel _currentUser;
 
         public ProjectHubViewModel(UserModel user)
@@ -81,12 +81,12 @@ namespace MyUserApp.ViewModels
             ProjectsView.SortDescriptions.Add(new SortDescription(nameof(ProjectDisplayViewModel.LastModifiedDate), ListSortDirection.Descending));
             ProjectsView.Filter = FilterProjects;
 
-
             NextImageCommand = new RelayCommand(ShowNextImage, _ => CanShowNextImage());
             PreviousImageCommand = new RelayCommand(ShowPreviousImage, _ => CanShowPreviousImage());
             StartNewProjectCommand = new RelayCommand(param => OnStartNewProjectRequested?.Invoke(_currentUser));
             LogoutCommand = new RelayCommand(param => OnLogoutRequested?.Invoke());
             OpenProjectCommand = new RelayCommand(OpenSelectedProject, _ => SelectedProject != null);
+            SwitchThemeCommand = new RelayCommand(_ => ThemeService.Instance.SwitchTheme());
 
             UpdateImageDisplay();
         }
@@ -95,22 +95,18 @@ namespace MyUserApp.ViewModels
         {
             if (string.IsNullOrWhiteSpace(FilterText))
             {
-                return true; // No filter, show all items
+                return true;
             }
-
             if (item is ProjectDisplayViewModel project)
             {
                 var filterText = FilterText.Trim();
-                // Check multiple fields for the filter text
                 return (project.ProjectName?.Contains(filterText, StringComparison.OrdinalIgnoreCase) ?? false) ||
                        (project.InspectorName?.Contains(filterText, StringComparison.OrdinalIgnoreCase) ?? false) ||
                        (project.VerifierName?.Contains(filterText, StringComparison.OrdinalIgnoreCase) ?? false) ||
                        (project.RoleDisplayString?.Contains(filterText, StringComparison.OrdinalIgnoreCase) ?? false);
             }
-
             return false;
         }
-
 
         private void OpenSelectedProject(object obj)
         {
@@ -128,46 +124,33 @@ namespace MyUserApp.ViewModels
         private async void UpdateImageDisplay()
         {
             BitmapSource imageToShow = null;
-
             if (_selectedProject != null && _selectedProject.Report.ImagePaths.Any())
             {
                 ImageCounterText = $"Image {_currentImageIndex + 1} of {_selectedProject.Report.ImagePaths.Count}";
                 string imagePath = _selectedProject.Report.ImagePaths[_currentImageIndex];
-
-                // Asynchronously create a downscaled thumbnail to prevent UI lag
                 imageToShow = await Task.Run(() =>
                 {
                     if (!File.Exists(imagePath)) return null;
-
                     try
                     {
                         var bitmap = new BitmapImage();
                         bitmap.BeginInit();
                         bitmap.UriSource = new Uri(imagePath);
-                        // This is the key optimization: only decode the image to a small size
                         bitmap.DecodePixelWidth = 300;
-                        bitmap.CacheOption = BitmapCacheOption.OnLoad; // Fully load into memory
+                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
                         bitmap.EndInit();
-                        bitmap.Freeze(); // Make the image thread-safe
+                        bitmap.Freeze();
                         return bitmap;
                     }
-                    catch
-                    {
-                        // Handle potential file corruption or access errors
-                        return null;
-                    }
+                    catch { return null; }
                 });
             }
-
             if (imageToShow == null)
             {
-                // If loading failed or there are no images, use the default placeholder
                 imageToShow = new BitmapImage(new Uri(DefaultImagePath));
                 ImageCounterText = "No Images";
             }
-
             PreviewImageSource = imageToShow;
-
             ((RelayCommand)NextImageCommand).RaiseCanExecuteChanged();
             ((RelayCommand)PreviousImageCommand).RaiseCanExecuteChanged();
         }

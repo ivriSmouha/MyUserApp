@@ -6,15 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-
-    <!-- 
-      This is the critical addition. It explicitly tells the project to build
-      for Any CPU, which is the most compatible setting for libraries with
-      native components like SkiaSharp. This resolves conflicts with the
-      Visual Studio XAML designer's own architecture.
-    -->
     <PlatformTarget>AnyCPU</PlatformTarget>
-
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,8 +20,9 @@
     <None Remove="Assets\placeholder.png" />
   </ItemGroup>
 
-  <!-- This is the correct package reference for modern .NET WPF projects -->
   <ItemGroup>
+    <PackageReference Include="MahApps.Metro.IconPacks.Material" Version="6.1.0" />
+    <PackageReference Include="MahApps.Metro.IconPacks.Modern" Version="4.11.0" />
     <PackageReference Include="SkiaSharp.Views.WPF" Version="2.88.8" />
   </ItemGroup>
 

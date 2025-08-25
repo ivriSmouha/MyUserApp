@@ -1,24 +1,37 @@
-﻿<UserControl x:Class="MyUserApp.Views.AdminPanelView"
+﻿<!-- File: MyUserApp/Views/AdminPanelView.xaml -->
+<UserControl x:Class="MyUserApp.Views.AdminPanelView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:viewmodels="clr-namespace:MyUserApp.ViewModels" 
              xmlns:services="clr-namespace:MyUserApp.Services"
+             xmlns:iconPacks="clr-namespace:MahApps.Metro.IconPacks;assembly=MahApps.Metro.IconPacks.Modern"
              d:DataContext="{d:DesignInstance Type=viewmodels:AdminPanelViewModel}"
              mc:Ignorable="d" 
-             d:DesignHeight="500" d:DesignWidth="1000">
-    <Grid Margin="15">
+             d:DesignHeight="500" d:DesignWidth="1000"
+             Background="{DynamicResource PrimaryBackgroundBrush}">
+
+    <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Orientation="Horizontal">
-            <TextBlock Text="Administrator Panel" FontSize="24" FontWeight="Bold"/>
-            <Button Content="Logout" Command="{Binding LogoutCommand}" Margin="50,0,0,0" Width="80" VerticalAlignment="Center"/>
-        </StackPanel>
+        <!-- Header -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,10">
+            <TextBlock Text="Administrator Panel" FontSize="24" FontWeight="Bold" VerticalAlignment="Center"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <!-- UPDATED: Corrected the binding to point to the new command -->
+                <Button Style="{DynamicResource IconButtonToolBarStyle}" Command="{Binding SwitchThemeCommand}"
+                        ToolTip="Switch Theme">
+                    <iconPacks:PackIconModern Kind="WeatherSun" />
+                </Button>
+                <Button Content="Logout" Command="{Binding LogoutCommand}" Style="{DynamicResource SecondaryButtonStyle}" Margin="10,0,0,0"/>
+            </StackPanel>
+        </DockPanel>
 
+        <!-- Main Content -->
         <TabControl Grid.Row="1" Margin="0,15,0,0">
             <TabItem Header="User Management">
                 <DockPanel>
@@ -27,7 +40,7 @@
                         <TextBox Width="200" Margin="5,0" Text="{Binding UserFilterText, UpdateSourceTrigger=PropertyChanged}"/>
                     </StackPanel>
 
-                    <GroupBox DockPanel.Dock="Bottom" Header="Add New User" FontWeight="Bold" Margin="5,5,5,5">
+                    <GroupBox DockPanel.Dock="Bottom" Header="Add New User" Margin="5,15,5,5">
                         <Grid Margin="5">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -46,11 +59,7 @@
                         </Grid>
                     </GroupBox>
 
-                    <DataGrid ItemsSource="{Binding UsersView}" 
-                              AutoGenerateColumns="False" 
-                              IsReadOnly="True" 
-                              CanUserSortColumns="True"
-                              SelectionMode="Single" Margin="5,0,5,5">
+                    <DataGrid ItemsSource="{Binding UsersView}" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Username" Binding="{Binding Username}" Width="*"/>
                             <DataGridTextColumn Header="Password" Binding="{Binding Password}" Width="*"/>
@@ -58,16 +67,19 @@
                             <DataGridTemplateColumn Header="Actions" Width="100">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Button Content="Delete" Command="{Binding DataContext.DeleteUserCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}">
+                                        <Button Command="{Binding DataContext.DeleteUserCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
+                                                CommandParameter="{Binding}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <iconPacks:PackIconModern Kind="Delete" VerticalAlignment="Center" Margin="0,0,5,0" Width="12" Height="12"/>
+                                                <TextBlock Text="Delete"/>
+                                            </StackPanel>
                                             <Button.Style>
-                                                <Style TargetType="Button">
+                                                <Style TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
                                                     <Setter Property="IsEnabled" Value="True"/>
                                                     <Style.Triggers>
-                                                        <!-- Disable delete for the main 'admin' -->
                                                         <DataTrigger Binding="{Binding Username}" Value="admin">
                                                             <Setter Property="IsEnabled" Value="False"/>
                                                         </DataTrigger>
-                                                        <!-- Disable delete for the special '[Deleted User]' -->
                                                         <DataTrigger Binding="{Binding Username}" Value="{x:Static services:UserService.DeletedUserUsername}">
                                                             <Setter Property="IsEnabled" Value="False"/>
                                                         </DataTrigger>
@@ -93,115 +105,132 @@
                     </Grid.ColumnDefinitions>
 
                     <GroupBox Grid.Column="0" Header="Aircraft Types" Margin="5">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <ListView Grid.Row="0" ItemsSource="{Binding AppOptions.AircraftTypes}">
-                                <ListView.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid Width="Auto">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="{Binding .}" VerticalAlignment="Center"/>
-                                            <Button Grid.Column="1" Content="Delete" FontSize="10" Command="{Binding DataContext.DeleteAircraftTypeCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding .}"/>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
-                            </ListView>
-                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
-                                <TextBox Text="{Binding NewAircraftType, UpdateSourceTrigger=PropertyChanged}" Width="120" Margin="5"/>
-                                <Button Content="Add" Command="{Binding AddAircraftTypeCommand}" Margin="5"/>
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,10,0,0">
+                                <TextBox Text="{Binding NewAircraftType, UpdateSourceTrigger=PropertyChanged}" Width="120" Margin="0,0,5,0"/>
+                                <Button Content="Add" Command="{Binding AddAircraftTypeCommand}"/>
                             </StackPanel>
-                        </Grid>
+                            <DataGrid ItemsSource="{Binding AppOptions.AircraftTypes}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="False" HeadersVisibility="Column">
+                                <DataGrid.Columns>
+                                    <DataGridTemplateColumn Header="Type" Width="*">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}" VerticalAlignment="Center" Margin="5,0"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Width="Auto">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <!-- UPDATED: Replaced 'X' button with a consistent icon button -->
+                                                <Button Style="{DynamicResource IconButtonToolBarStyle}" Padding="5" Width="28" Height="28"
+                                                        Command="{Binding DataContext.DeleteAircraftTypeCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
+                                                        CommandParameter="{Binding}">
+                                                    <iconPacks:PackIconModern Kind="Delete" Width="12" Height="12"/>
+                                                </Button>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
                     </GroupBox>
 
-                    <!-- Column for managing Tailnumber Types -->
                     <GroupBox Grid.Column="1" Header="Tail Numbers" Margin="5">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <ListView Grid.Row="0" ItemsSource="{Binding AppOptions.TailNumbers}">
-                                <ListView.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid Width="Auto">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="{Binding .}" VerticalAlignment="Center"/>
-                                            <Button Grid.Column="1" Content="Delete" FontSize="10" Command="{Binding DataContext.DeleteTailNumberCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding .}"/>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
-                            </ListView>
-                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
-                                <TextBox Text="{Binding NewTailNumber, UpdateSourceTrigger=PropertyChanged}" Width="120" Margin="5"/>
-                                <Button Content="Add" Command="{Binding AddTailNumberCommand}" Margin="5"/>
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,10,0,0">
+                                <TextBox Text="{Binding NewTailNumber, UpdateSourceTrigger=PropertyChanged}" Width="120" Margin="0,0,5,0"/>
+                                <Button Content="Add" Command="{Binding AddTailNumberCommand}"/>
                             </StackPanel>
-                        </Grid>
+                            <DataGrid ItemsSource="{Binding AppOptions.TailNumbers}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="False" HeadersVisibility="Column">
+                                <DataGrid.Columns>
+                                    <DataGridTemplateColumn Header="Number" Width="*">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}" VerticalAlignment="Center" Margin="5,0"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Width="Auto">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <!-- UPDATED: Replaced 'X' button with a consistent icon button -->
+                                                <Button Style="{DynamicResource IconButtonToolBarStyle}" Padding="5" Width="28" Height="28"
+                                                        Command="{Binding DataContext.DeleteTailNumberCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
+                                                        CommandParameter="{Binding}">
+                                                    <iconPacks:PackIconModern Kind="Delete" Width="12" Height="12"/>
+                                                </Button>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
                     </GroupBox>
-                    <!-- Column for managing Aircraft Sides -->
+
                     <GroupBox Grid.Column="2" Header="Aircraft Sides" Margin="5">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <ListView Grid.Row="0" ItemsSource="{Binding AppOptions.AircraftSides}">
-                                <ListView.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid Width="Auto">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="{Binding .}" VerticalAlignment="Center"/>
-                                            <Button Grid.Column="1" Content="Delete" FontSize="10" Command="{Binding DataContext.DeleteAircraftSideCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding .}"/>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
-                            </ListView>
-                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
-                                <TextBox Text="{Binding NewAircraftSide, UpdateSourceTrigger=PropertyChanged}" Width="120" Margin="5"/>
-                                <Button Content="Add" Command="{Binding AddAircraftSideCommand}" Margin="5"/>
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,10,0,0">
+                                <TextBox Text="{Binding NewAircraftSide, UpdateSourceTrigger=PropertyChanged}" Width="120" Margin="0,0,5,0"/>
+                                <Button Content="Add" Command="{Binding AddAircraftSideCommand}"/>
                             </StackPanel>
-                        </Grid>
+                            <DataGrid ItemsSource="{Binding AppOptions.AircraftSides}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="False" HeadersVisibility="Column">
+                                <DataGrid.Columns>
+                                    <DataGridTemplateColumn Header="Side" Width="*">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}" VerticalAlignment="Center" Margin="5,0"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Width="Auto">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <!-- UPDATED: Replaced 'X' button with a consistent icon button -->
+                                                <Button Style="{DynamicResource IconButtonToolBarStyle}" Padding="5" Width="28" Height="28"
+                                                        Command="{Binding DataContext.DeleteAircraftSideCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
+                                                        CommandParameter="{Binding}">
+                                                    <iconPacks:PackIconModern Kind="Delete" Width="12" Height="12"/>
+                                                </Button>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
                     </GroupBox>
 
-                    <!-- Column for managing Reasons -->
                     <GroupBox Grid.Column="3" Header="Reasons" Margin="5">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <ListView Grid.Row="0" ItemsSource="{Binding AppOptions.Reasons}">
-                                <ListView.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid Width="Auto">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="{Binding .}" VerticalAlignment="Center"/>
-                                            <Button Grid.Column="1" Content="Delete" FontSize="10" Command="{Binding DataContext.DeleteReasonCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding .}"/>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
-                            </ListView>
-                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
-                                <TextBox Text="{Binding NewReason, UpdateSourceTrigger=PropertyChanged}" Width="120" Margin="5"/>
-                                <Button Content="Add" Command="{Binding AddReasonCommand}" Margin="5"/>
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,10,0,0">
+                                <TextBox Text="{Binding NewReason, UpdateSourceTrigger=PropertyChanged}" Width="120" Margin="0,0,5,0"/>
+                                <Button Content="Add" Command="{Binding AddReasonCommand}"/>
                             </StackPanel>
-                        </Grid>
+                            <DataGrid ItemsSource="{Binding AppOptions.Reasons}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="False" HeadersVisibility="Column">
+                                <DataGrid.Columns>
+                                    <DataGridTemplateColumn Header="Reason" Width="*">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}" VerticalAlignment="Center" Margin="5,0"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Width="Auto">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <!-- UPDATED: Replaced 'X' button with a consistent icon button -->
+                                                <Button Style="{DynamicResource IconButtonToolBarStyle}" Padding="5" Width="28" Height="28"
+                                                        Command="{Binding DataContext.DeleteReasonCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
+                                                        CommandParameter="{Binding}">
+                                                    <iconPacks:PackIconModern Kind="Delete" Width="12" Height="12"/>
+                                                </Button>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
                     </GroupBox>
-
                 </Grid>
             </TabItem>
         </TabControl>

@@ -1,34 +1,41 @@
-﻿<Application x:Class="MyUserApp.App"
+﻿<!-- File: MyUserApp/App.xaml -->
+<Application x:Class="MyUserApp.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:MyUserApp"
+             xmlns:viewmodels="clr-namespace:MyUserApp.ViewModels"
              xmlns:views="clr-namespace:MyUserApp.Views"
-             xmlns:viewModels="clr-namespace:MyUserApp.ViewModels"
              StartupUri="MainWindow.xaml">
+
+    <!-- The Resources section is now corrected and properly nested -->
     <Application.Resources>
         <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- 
+                This is the key change. We ONLY load the default theme file.
+                The theme file itself is now responsible for loading Styles.xaml.
+                -->
+                <ResourceDictionary Source="Themes/DarkTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
 
             <!-- DataTemplates to connect ViewModels to Views -->
-            <DataTemplate DataType="{x:Type viewModels:LoginViewModel}">
+            <DataTemplate DataType="{x:Type viewmodels:LoginViewModel}">
                 <views:LoginView/>
             </DataTemplate>
-
-            <DataTemplate DataType="{x:Type viewModels:AdminPanelViewModel}">
+            <DataTemplate DataType="{x:Type viewmodels:AdminPanelViewModel}">
                 <views:AdminPanelView/>
             </DataTemplate>
-
-            <DataTemplate DataType="{x:Type viewModels:ProjectHubViewModel}">
+            <DataTemplate DataType="{x:Type viewmodels:ProjectHubViewModel}">
                 <views:ProjectHubView/>
             </DataTemplate>
-
-            <DataTemplate DataType="{x:Type viewModels:ReportEntryViewModel}">
+            <DataTemplate DataType="{x:Type viewmodels:ReportEntryViewModel}">
                 <views:ReportEntryView/>
             </DataTemplate>
-
-            <DataTemplate DataType="{x:Type viewModels:ImageEditorViewModel}">
+            <DataTemplate DataType="{x:Type viewmodels:ImageEditorViewModel}">
                 <views:ImageEditorView/>
             </DataTemplate>
-           
+
         </ResourceDictionary>
     </Application.Resources>
+
 </Application>

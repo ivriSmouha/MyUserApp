@@ -4,10 +4,12 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:models="clr-namespace:MyUserApp.Models"
+             xmlns:iconPacks="clr-namespace:MahApps.Metro.IconPacks;assembly=MahApps.Metro.IconPacks.Modern"
              mc:Ignorable="d" 
-             d:DesignHeight="550" d:DesignWidth="900">
+             d:DesignHeight="550" d:DesignWidth="1100"
+             Background="{DynamicResource PrimaryBackgroundBrush}">
 
-    <Grid Margin="15">
+    <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -15,55 +17,62 @@
 
         <!-- Header -->
         <DockPanel Grid.Row="0">
-            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                <TextBlock Text="{Binding WelcomeMessage}" FontSize="24" FontWeight="Bold"/>
-                <Button Content="Logout" Command="{Binding LogoutCommand}" Margin="50,0,0,0" Width="80" VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding WelcomeMessage}" FontSize="24" FontWeight="Bold" VerticalAlignment="Center"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Style="{DynamicResource IconButtonToolBarStyle}" Command="{Binding SwitchThemeCommand}" ToolTip="Switch Theme">
+                    <iconPacks:PackIconModern Kind="WeatherSun" />
+                </Button>
+                <Button Content="Logout" Command="{Binding LogoutCommand}" Style="{DynamicResource SecondaryButtonStyle}" Margin="10,0,0,0"/>
             </StackPanel>
         </DockPanel>
 
         <!-- Main Content Area -->
         <Grid Grid.Row="1" Margin="0,20,0,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="220"/>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="300"/>
             </Grid.ColumnDefinitions>
 
             <!-- Actions Column -->
             <StackPanel Grid.Column="0" Margin="0,0,20,0">
-                <Button Content="Start New Project" Command="{Binding StartNewProjectCommand}" Padding="10" FontSize="16" FontWeight="Bold" ToolTip="Begin a new inspection report."/>
-                <Button Content="Open Selected Project" Command="{Binding OpenProjectCommand}" Padding="10" FontSize="16" FontWeight="Bold" Margin="0,10,0,0" ToolTip="Open the selected project from the list."/>
+                <Button Command="{Binding StartNewProjectCommand}" ToolTip="Begin a new inspection report." Padding="15,10">
+                    <StackPanel Orientation="Horizontal">
+                        <iconPacks:PackIconModern Kind="Add" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBlock Text="Start New Project" FontSize="14" FontWeight="SemiBold"/>
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding OpenProjectCommand}" ToolTip="Open the selected project from the list." Margin="0,10,0,0" Padding="15,10" Style="{DynamicResource SecondaryButtonStyle}">
+                    <StackPanel Orientation="Horizontal">
+                        <iconPacks:PackIconModern Kind="FolderOpen" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBlock Text="Open Selected Project" FontSize="14" FontWeight="SemiBold"/>
+                    </StackPanel>
+                </Button>
             </StackPanel>
 
             <!-- Recent Projects Column -->
             <DockPanel Grid.Column="1">
-                <StackPanel Orientation="Horizontal" DockPanel.Dock="Top" Margin="5,0,5,5">
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Top" Margin="5,0,5,10">
                     <TextBlock Text="Filter:" VerticalAlignment="Center" FontWeight="SemiBold"/>
                     <TextBox Width="200" Margin="5,0" Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"/>
                 </StackPanel>
 
-                <DataGrid ItemsSource="{Binding ProjectsView}" 
-                          SelectedItem="{Binding SelectedProject}"
-                          AutoGenerateColumns="False" 
-                          IsReadOnly="True" 
-                          SelectionMode="Single"
-                          CanUserSortColumns="True">
-
+                <DataGrid ItemsSource="{Binding ProjectsView}" SelectedItem="{Binding SelectedProject}" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single">
                     <DataGrid.RowStyle>
-                        <Style TargetType="DataGridRow">
+                        <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
                             <EventSetter Event="MouseDoubleClick" Handler="ListViewItem_MouseDoubleClick" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsDualRole}" Value="True">
                                     <Setter Property="BorderBrush" Value="MediumOrchid"/>
-                                    <Setter Property="BorderThickness" Value="2,1,1,1"/>
+                                    <Setter Property="BorderThickness" Value="2,0,0,0"/>
                                 </DataTrigger>
                                 <MultiDataTrigger>
                                     <MultiDataTrigger.Conditions>
                                         <Condition Binding="{Binding CurrentUserRole}" Value="Inspector"/>
                                         <Condition Binding="{Binding IsDualRole}" Value="False"/>
                                     </MultiDataTrigger.Conditions>
-                                    <Setter Property="BorderBrush" Value="DodgerBlue"/>
-                                    <Setter Property="BorderThickness" Value="2,1,1,1"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource PrimaryAccentBrush}"/>
+                                    <Setter Property="BorderThickness" Value="2,0,0,0"/>
                                 </MultiDataTrigger>
                                 <MultiDataTrigger>
                                     <MultiDataTrigger.Conditions>
@@ -71,7 +80,7 @@
                                         <Condition Binding="{Binding IsDualRole}" Value="False"/>
                                     </MultiDataTrigger.Conditions>
                                     <Setter Property="BorderBrush" Value="Goldenrod"/>
-                                    <Setter Property="BorderThickness" Value="2,1,1,1"/>
+                                    <Setter Property="BorderThickness" Value="2,0,0,0"/>
                                 </MultiDataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -85,7 +94,6 @@
                         <DataGridTextColumn Header="Created" Binding="{Binding CreationDate, StringFormat='g'}" SortMemberPath="CreationDate" Width="130"/>
                         <DataGridTextColumn Header="Last Modified" Binding="{Binding LastModifiedDate, StringFormat='g'}" SortMemberPath="LastModifiedDate" Width="130"/>
                     </DataGrid.Columns>
-
                 </DataGrid>
             </DockPanel>
 
@@ -113,9 +121,9 @@
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" Content="Prev" HorizontalAlignment="Left" Command="{Binding PreviousImageCommand}"/>
+                        <Button Grid.Column="0" Content="Prev" HorizontalAlignment="Left" Command="{Binding PreviousImageCommand}" Style="{DynamicResource SecondaryButtonStyle}"/>
                         <TextBlock Grid.Column="1" Text="{Binding ImageCounterText}" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="10,0" FontWeight="SemiBold"/>
-                        <Button Grid.Column="2" Content="Next" HorizontalAlignment="Right" Command="{Binding NextImageCommand}"/>
+                        <Button Grid.Column="2" Content="Next" HorizontalAlignment="Right" Command="{Binding NextImageCommand}" Style="{DynamicResource SecondaryButtonStyle}"/>
                     </Grid>
                 </Grid>
             </GroupBox>

@@ -1,6 +1,7 @@
 ﻿// File: MyUserApp/ViewModels/MainViewModel.cs
-
 using MyUserApp.Models;
+using MyUserApp.Services;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -14,22 +15,15 @@ namespace MyUserApp.ViewModels
             get => _currentView;
             set
             {
-                // ===================================================================
-                // ==     REMOVED: The invalid call to oldEditorVM.SaveAnnotations();  ==
-                // ==     The new IsDirty flag and prompts make this obsolete.        ==
-                // ===================================================================
                 _currentView = value;
                 OnPropertyChanged();
             }
         }
 
-        private readonly AdminPanelViewModel _adminPanelVM;
         private UserModel _currentUser;
 
         public MainViewModel()
         {
-            _adminPanelVM = new AdminPanelViewModel();
-            _adminPanelVM.OnLogoutRequested += ShowLoginView;
             ShowLoginView();
         }
 
@@ -46,7 +40,9 @@ namespace MyUserApp.ViewModels
             _currentUser = user;
             if (user.IsAdmin)
             {
-                CurrentView = _adminPanelVM;
+                var adminPanelVM = new AdminPanelViewModel();
+                adminPanelVM.OnLogoutRequested += ShowLoginView;
+                CurrentView = adminPanelVM;
             }
             else
             {
@@ -60,9 +56,7 @@ namespace MyUserApp.ViewModels
             var projectHubVM = new ProjectHubViewModel(user);
             projectHubVM.OnLogoutRequested += ShowLoginView;
             projectHubVM.OnStartNewProjectRequested += ShowReportEntryScreen;
-
             projectHubVM.OnOpenProjectRequested += async (report, role) => await ShowImageEditorAsync(report, user, role);
-
             CurrentView = projectHubVM;
         }
 
@@ -84,9 +78,7 @@ namespace MyUserApp.ViewModels
         {
             var imageEditorVM = new ImageEditorViewModel(report, user, role);
             imageEditorVM.OnFinished += () => ShowProjectHub(user);
-
             CurrentView = imageEditorVM;
-
             await imageEditorVM.InitializeAsync();
         }
 

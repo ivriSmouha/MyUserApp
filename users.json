@@ -1,0 +1,12 @@
+[
+  {
+    "Username": "admin",
+    "Password": "123",
+    "IsAdmin": true
+  },
+  {
+    "Username": "[Deleted User]",
+    "Password": "000",
+    "IsAdmin": false
+  }
+]

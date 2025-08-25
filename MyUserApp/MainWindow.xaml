@@ -6,41 +6,14 @@
         xmlns:viewmodels="clr-namespace:MyUserApp.ViewModels"
         xmlns:views="clr-namespace:MyUserApp.Views"
         mc:Ignorable="d"
-        Title="Aircraft Inspection Reporter" Height="600" Width="850"
+        Title="Aircraft Inspection Reporter" Height="800" Width="1280"
         WindowStartupLocation="CenterScreen"
-
-    Closing="Window_Closing">
+        Background="{DynamicResource PrimaryBackgroundBrush}"
+        Closing="Window_Closing">
 
     <Window.DataContext>
         <viewmodels:MainViewModel/>
     </Window.DataContext>
 
-    <Window.Resources>
-        <!-- This dictionary tells WPF which View to use for each ViewModel -->
-        <DataTemplate DataType="{x:Type viewmodels:LoginViewModel}">
-            <views:LoginView/>
-        </DataTemplate>
-
-        <DataTemplate DataType="{x:Type viewmodels:AdminPanelViewModel}">
-            <views:AdminPanelView/>
-        </DataTemplate>
-
-        <DataTemplate DataType="{x:Type viewmodels:ProjectHubViewModel}">
-            <views:ProjectHubView/>
-        </DataTemplate>
-
-        <DataTemplate DataType="{x:Type viewmodels:ReportEntryViewModel}">
-            <views:ReportEntryView/>
-        </DataTemplate>
-
-        <!-- =================================================================== -->
-        <!-- ==    NEW: Added a DataTemplate for the Image Editor for completeness == -->
-        <!-- =================================================================== -->
-        <DataTemplate DataType="{x:Type viewmodels:ImageEditorViewModel}">
-            <views:ImageEditorView/>
-        </DataTemplate>
-    </Window.Resources>
-
-    <!-- This ContentControl is the stage where the current view is displayed -->
     <ContentControl Content="{Binding CurrentView}"/>
 </Window>
