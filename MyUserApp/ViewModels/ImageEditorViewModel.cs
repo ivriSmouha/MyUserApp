@@ -10,7 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Input;
+using System.Windows.Input; // Added for Cursor support
 
 namespace MyUserApp.ViewModels
 {
@@ -51,6 +51,11 @@ namespace MyUserApp.ViewModels
         private bool _showInspectorAnnotations = true;
         private bool _showVerifierAnnotations = true;
         private bool _showAiAnnotations = true;
+
+        // ADDED: Private fields to hold the loaded cursor objects.
+        private Cursor _defaultCursor;
+        private Cursor _drawCursor;
+        private Cursor _panCursor;
         #endregion
 
         #region Public Properties
@@ -164,6 +169,17 @@ namespace MyUserApp.ViewModels
         public AuthorType ActiveRole { get => _activeRole; private set { _activeRole = value; OnPropertyChanged(); } }
         #endregion
 
+        // ADDED: This new public property will be bound to the UI to control the cursor.
+        private Cursor _currentCanvasCursor;
+        public Cursor CurrentCanvasCursor
+        {
+            get => _currentCanvasCursor;
+            private set
+            {
+                _currentCanvasCursor = value;
+                OnPropertyChanged();
+            }
+        }
         #endregion
 
         #region Commands
@@ -196,14 +212,12 @@ namespace MyUserApp.ViewModels
             _currentUserRole = role;
             ActiveRole = role;
 
-            // Check if the user is assigned as both Inspector and Verifier.
             IsDualRoleUser = !string.IsNullOrEmpty(report.InspectorName) &&
                              report.InspectorName == user.Username &&
                              report.VerifierName == user.Username;
 
             ImageThumbnails = new ObservableCollection<string>(report.ImagePaths);
 
-            // Load existing annotations and adjustments into session-specific dictionaries.
             if (report.AnnotationsByImage != null)
             {
                 foreach (var entry in report.AnnotationsByImage)
@@ -216,7 +230,6 @@ namespace MyUserApp.ViewModels
                 _sessionAdjustments = new Dictionary<string, ImageAdjustmentModel>(report.AdjustmentsByImage);
             }
 
-            // Populate dropdowns from global services.
             var options = OptionsService.Instance.Options;
             AircraftTypes = new ObservableCollection<string>(options.AircraftTypes);
             TailNumbers = new ObservableCollection<string>(options.TailNumbers);
@@ -224,7 +237,6 @@ namespace MyUserApp.ViewModels
             Reasons = new ObservableCollection<string>(options.Reasons);
             Usernames = new ObservableCollection<string>(UserService.Instance.Users.Select(u => u.Username));
 
-            // Initialize all ICommand properties.
             UndoCommand = new RelayCommand(Undo, CanUndo);
             RedoCommand = new RelayCommand(Redo, CanRedo);
             DeleteAnnotationCommand = new RelayCommand(DeleteSelectedAnnotation, _ => SelectedAnnotation != null);
@@ -240,6 +252,9 @@ namespace MyUserApp.ViewModels
             FinishEditingCommand = new RelayCommand(async _ => await HandleFinishEditingAsync());
             SaveOnlyCommand = new RelayCommand(async _ => await SaveAndExportFullReportAsync());
             SaveCommand = new RelayCommand(async _ => await SaveAndExportFullReportAsync());
+
+            // ADDED: Call the new method to initialize cursors.
+            InitializeCursors();
         }
 
         #region Core Logic
@@ -274,13 +289,11 @@ namespace MyUserApp.ViewModels
                 return;
             }
 
-            // Load bitmap from file asynchronously.
             using (var tempStream = new MemoryStream(await File.ReadAllBytesAsync(SelectedImage)))
             {
                 _currentBitmap = await Task.Run(() => SKBitmap.Decode(tempStream));
             }
 
-            // Set the current annotations list for the selected image.
             if (!_sessionAnnotations.TryGetValue(SelectedImage, out var existingAnnotations))
             {
                 existingAnnotations = new ObservableCollection<AnnotationModel>();
@@ -288,7 +301,6 @@ namespace MyUserApp.ViewModels
             }
             CurrentAnnotations = existingAnnotations;
 
-            // Reset state for the new image.
             SelectedAnnotation = null;
             ClearHistory();
             ResetView(null);
@@ -302,7 +314,6 @@ namespace MyUserApp.ViewModels
         /// </summary>
         public async Task SaveAndExportFullReportAsync()
         {
-            // Persist session data back to the main report model.
             _report.AnnotationsByImage.Clear();
             foreach (var entry in _sessionAnnotations)
             {
@@ -323,7 +334,6 @@ namespace MyUserApp.ViewModels
                 return;
             }
 
-            // Prepare the output directory.
             string sanitizedProjectName = string.Join("_", _report.ProjectName.Split(Path.GetInvalidFileNameChars()));
             string outputDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Exported Reports", sanitizedProjectName);
 
@@ -338,7 +348,6 @@ namespace MyUserApp.ViewModels
                 return;
             }
 
-            // Process and export each image on a background thread.
             await Task.Run(() =>
             {
                 foreach (var imagePath in _report.ImagePaths)
@@ -347,19 +356,16 @@ namespace MyUserApp.ViewModels
 
                     _sessionAdjustments.TryGetValue(imagePath, out var adjustments);
 
-                    // Create a new surface to draw the adjusted and annotated image.
                     using (var originalBitmap = SKBitmap.Decode(imagePath))
                     using (var exportSurface = SKSurface.Create(new SKImageInfo(originalBitmap.Width, originalBitmap.Height)))
                     {
                         var canvas = exportSurface.Canvas;
 
-                        // Apply brightness/contrast filter.
                         using (var bitmapPaint = new SKPaint { ColorFilter = CreateColorFilter(adjustments?.Brightness ?? 0f, adjustments?.Contrast ?? 1f) })
                         {
                             canvas.DrawBitmap(originalBitmap, 0, 0, bitmapPaint);
                         }
 
-                        // Draw annotations on top.
                         if (_sessionAnnotations.TryGetValue(imagePath, out var annotationsForThisImage))
                         {
                             using (var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 4 })
@@ -378,7 +384,6 @@ namespace MyUserApp.ViewModels
                             }
                         }
 
-                        // Save the final image to the output directory.
                         string outputFilePath = Path.Combine(outputDirectory, Path.GetFileName(imagePath));
                         using (var image = exportSurface.Snapshot())
                         using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 95))
@@ -429,9 +434,9 @@ namespace MyUserApp.ViewModels
             if (result == MessageBoxResult.Yes)
             {
                 await SaveAndExportFullReportAsync();
-                return true; // Can close after saving.
+                return true;
             }
-            return result == MessageBoxResult.No; // Can close if discarding, cannot close if canceling.
+            return result == MessageBoxResult.No;
         }
         #endregion
 
@@ -445,27 +450,23 @@ namespace MyUserApp.ViewModels
             canvas.Clear(SKColors.Black);
             if (_currentBitmap == null) return;
 
-            // Refit image if canvas size changes.
             if (_lastCanvasInfo.Width != info.Width || _lastCanvasInfo.Height != info.Height)
             {
                 _lastCanvasInfo = info;
                 FitImageToView();
             }
 
-            // Apply view transformations (pan, zoom, rotate).
             canvas.Save();
             canvas.Translate(info.Width / 2f, info.Height / 2f);
             canvas.Translate(_panOffset.X, _panOffset.Y);
             canvas.RotateDegrees(_rotationDegrees);
             canvas.Scale(_zoomScale);
 
-            // Draw the main bitmap with adjustments.
             using (var bitmapPaint = new SKPaint { ColorFilter = CreateColorFilter(BrightnessValue, ContrastValue) })
             {
                 canvas.DrawBitmap(_currentBitmap, -_currentBitmap.Width / 2f, -_currentBitmap.Height / 2f, bitmapPaint);
             }
 
-            // Draw all visible annotations.
             using (var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke })
             {
                 var annotationsToDraw = (CurrentAnnotations ?? Enumerable.Empty<AnnotationModel>()).Where(ShouldShowAnnotation).ToList();
@@ -495,18 +496,20 @@ namespace MyUserApp.ViewModels
         /// </summary>
         public void StartDrawing(float x, float y)
         {
+            // MODIFIED: Set the cursor to the drawing cursor.
+            CurrentCanvasCursor = _drawCursor;
+
             SKPoint? imagePoint = ScreenToImageCoordinates(new SKPoint(x, y));
             if (imagePoint == null || imagePoint.Value.X < 0 || imagePoint.Value.X > 1 || imagePoint.Value.Y < 0 || imagePoint.Value.Y > 1)
             {
                 _currentMode = InteractionMode.None;
-                return; // Ignore clicks outside the image bounds.
+                return;
             }
 
             AnnotationModel clickedAnnotation = CheckForAnnotationHit(imagePoint.Value);
 
             if (clickedAnnotation != null)
             {
-                // Logic for nesting Verifier/Inspector annotations.
                 bool isNestablePair = (clickedAnnotation.Author == AuthorType.Inspector && ActiveRole == AuthorType.Verifier) ||
                                       (clickedAnnotation.Author == AuthorType.Verifier && ActiveRole == AuthorType.Inspector);
                 if (isNestablePair)
@@ -518,14 +521,12 @@ namespace MyUserApp.ViewModels
                 }
                 else if (IsAnnotationEditable(clickedAnnotation))
                 {
-                    // Select an existing, editable annotation.
                     SelectedAnnotation = clickedAnnotation;
                     _currentMode = InteractionMode.None;
                 }
             }
             else
             {
-                // Start drawing a new annotation.
                 SelectedAnnotation = null;
                 _currentMode = InteractionMode.Drawing;
                 _interactionStartPoint = imagePoint.Value;
@@ -548,7 +549,6 @@ namespace MyUserApp.ViewModels
                     SKPoint? currentImagePoint = ScreenToImageCoordinates(new SKPoint(x, y));
                     if (currentImagePoint == null || _previewAnnotation == null) return;
 
-                    // Clamp coordinates to image boundaries to prevent oversized circles.
                     float clampedX = Math.Max(0f, Math.Min(1f, currentImagePoint.Value.X));
                     float clampedY = Math.Max(0f, Math.Min(1f, currentImagePoint.Value.Y));
 
@@ -565,9 +565,11 @@ namespace MyUserApp.ViewModels
         /// </summary>
         public void EndInteraction(float x, float y)
         {
+            // MODIFIED: Reset the cursor to the default arrow.
+            CurrentCanvasCursor = _defaultCursor;
+
             if (_currentMode == InteractionMode.Drawing && _previewAnnotation != null)
             {
-                // Only add the annotation if it's a meaningful size.
                 if (_currentBitmap != null && _previewAnnotation.Radius * _currentBitmap.Width > 5)
                 {
                     ExecuteCommand(new AddAnnotationCommand(CurrentAnnotations, _previewAnnotation));
@@ -590,7 +592,6 @@ namespace MyUserApp.ViewModels
             _zoomScale = Math.Clamp(_zoomScale * factor, 0.1f, 10.0f);
             float scaleRatio = _zoomScale / oldScale;
 
-            // Adjust pan offset to keep the anchor point stationary.
             float canvasCenterX = _lastCanvasInfo.Width / 2f;
             float canvasCenterY = _lastCanvasInfo.Height / 2f;
             _panOffset = new SKPoint(
@@ -605,6 +606,9 @@ namespace MyUserApp.ViewModels
         /// </summary>
         public void StartPan(float x, float y)
         {
+            // MODIFIED: Set the cursor to the panning cursor.
+            CurrentCanvasCursor = _panCursor;
+
             _currentMode = InteractionMode.Panning;
             _interactionStartPoint = new SKPoint(x, y);
             _panStartOffset = _panOffset;
@@ -612,6 +616,37 @@ namespace MyUserApp.ViewModels
         #endregion
 
         #region Helper Methods
+        /// <summary>
+        /// Loads custom cursors from the embedded project resources.
+        /// </summary>
+        private void InitializeCursors()
+        {
+            try
+            {
+                // The default cursor is just the standard arrow.
+                _defaultCursor = Cursors.Arrow;
+
+                // Load the custom cursors using the file names you provided.
+                var drawCursorUri = new Uri("Cursors/handwriting.cur", UriKind.Relative);
+                var panCursorUri = new Uri("Cursors/move.cur", UriKind.Relative);
+
+                _drawCursor = new Cursor(Application.GetResourceStream(drawCursorUri).Stream);
+                _panCursor = new Cursor(Application.GetResourceStream(panCursorUri).Stream);
+
+                // Set the initial cursor state.
+                CurrentCanvasCursor = _defaultCursor;
+            }
+            catch (Exception ex)
+            {
+                // If the cursors fail to load, fall back to default cursors to prevent a crash.
+                Console.WriteLine($"Error loading custom cursors: {ex.Message}");
+                _defaultCursor = Cursors.Arrow;
+                _drawCursor = Cursors.Cross; // A good fallback for drawing.
+                _panCursor = Cursors.SizeAll; // A good fallback for panning.
+                CurrentCanvasCursor = _defaultCursor;
+            }
+        }
+
         /// <summary>
         /// Sets the IsDirty flag to true.
         /// </summary>
@@ -691,19 +726,16 @@ namespace MyUserApp.ViewModels
             DeleteExistingExportFolder();
             SetDirty();
 
-            // Determine which image to select next.
             int deletedImageIndex = ImageThumbnails.IndexOf(imageToDelete);
             string nextSelection = (ImageThumbnails.Count > 1) ? (deletedImageIndex == 0 ? ImageThumbnails[1] : ImageThumbnails[deletedImageIndex - 1]) : null;
 
-            // Clear selection and remove data.
             SelectedImage = null;
-            await Task.Delay(100); // Allow UI to update.
+            await Task.Delay(100);
             _report.ImagePaths.Remove(imageToDelete);
             _sessionAnnotations.Remove(imageToDelete);
             _sessionAdjustments.Remove(imageToDelete);
             ImageThumbnails.Remove(imageToDelete);
 
-            // Delete the physical file.
             try
             {
                 if (File.Exists(imageToDelete)) File.Delete(imageToDelete);
@@ -713,7 +745,6 @@ namespace MyUserApp.ViewModels
                 MessageBox.Show($"Could not delete the image file:\n{ex.Message}", "File Deletion Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
 
-            // Resave the report and select the next image.
             await SaveAndExportFullReportAsync();
             SelectedImage = nextSelection;
         }
@@ -902,7 +933,6 @@ namespace MyUserApp.ViewModels
         {
             if (_currentBitmap == null || _lastCanvasInfo.Width == 0) return null;
 
-            // Build the transformation matrix from image to screen.
             var matrix = SKMatrix.CreateIdentity();
             SKMatrix.PostConcat(ref matrix, SKMatrix.CreateTranslation(-_currentBitmap.Width / 2f, -_currentBitmap.Height / 2f));
             SKMatrix.PostConcat(ref matrix, SKMatrix.CreateScale(_zoomScale, _zoomScale));
@@ -910,7 +940,6 @@ namespace MyUserApp.ViewModels
             SKMatrix.PostConcat(ref matrix, SKMatrix.CreateTranslation(_panOffset.X, _panOffset.Y));
             SKMatrix.PostConcat(ref matrix, SKMatrix.CreateTranslation(_lastCanvasInfo.Width / 2f, _lastCanvasInfo.Height / 2f));
 
-            // Invert it to go from screen to image.
             if (!matrix.TryInvert(out var invertedMatrix)) return null;
 
             SKPoint imagePixelPoint = invertedMatrix.MapPoint(screenPoint);
@@ -923,12 +952,10 @@ namespace MyUserApp.ViewModels
         private AnnotationModel CheckForAnnotationHit(SKPoint relativePoint)
         {
             if (_currentBitmap == null || CurrentAnnotations == null) return null;
-            // Iterate backwards to prioritize annotations on top.
             for (int i = CurrentAnnotations.Count - 1; i >= 0; i--)
             {
                 var annotation = CurrentAnnotations[i];
                 double dist = Math.Sqrt(Math.Pow(relativePoint.X - annotation.CenterX, 2) + Math.Pow(relativePoint.Y - annotation.CenterY, 2));
-                // Add a small buffer to make selection easier.
                 double relativeHitRadius = annotation.Radius + (5 / (_currentBitmap.Width * _zoomScale));
                 if (dist <= relativeHitRadius) return annotation;
             }
@@ -949,12 +976,10 @@ namespace MyUserApp.ViewModels
         private bool IsAnnotationEditable(AnnotationModel annotation)
         {
             if (annotation == null) return false;
-            // Dual-role users can edit both their inspector and verifier marks.
             if (IsDualRoleUser)
             {
                 return annotation.Author == AuthorType.Inspector || annotation.Author == AuthorType.Verifier;
             }
-            // Standard users can only edit annotations matching their role.
             return annotation.Author == _currentUserRole;
         }
 

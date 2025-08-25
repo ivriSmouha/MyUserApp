@@ -32,6 +32,21 @@
 
   <ItemGroup>
     <None Remove="Assets\placeholder.png" />
+    <None Remove="Cursors\account.cur" />
+    <None Remove="Cursors\alternate.cur" />
+    <None Remove="Cursors\cross.cur" />
+    <None Remove="Cursors\dgn1.cur" />
+    <None Remove="Cursors\dgn2.cur" />
+    <None Remove="Cursors\handwriting.cur" />
+    <None Remove="Cursors\help.cur" />
+    <None Remove="Cursors\horz.cur" />
+    <None Remove="Cursors\link.cur" />
+    <None Remove="Cursors\move.cur" />
+    <None Remove="Cursors\place.cur" />
+    <None Remove="Cursors\pointer.cur" />
+    <None Remove="Cursors\text.cur" />
+    <None Remove="Cursors\unavailiable.cur" />
+    <None Remove="Cursors\vert.cur" />
   </ItemGroup>
 
   <ItemGroup>
@@ -42,6 +57,21 @@
 
   <ItemGroup>
     <Resource Include="Assets\placeholder.png" />
+    <Resource Include="Cursors\account.cur" />
+    <Resource Include="Cursors\alternate.cur" />
+    <Resource Include="Cursors\cross.cur" />
+    <Resource Include="Cursors\dgn1.cur" />
+    <Resource Include="Cursors\dgn2.cur" />
+    <Resource Include="Cursors\handwriting.cur" />
+    <Resource Include="Cursors\help.cur" />
+    <Resource Include="Cursors\horz.cur" />
+    <Resource Include="Cursors\link.cur" />
+    <Resource Include="Cursors\move.cur" />
+    <Resource Include="Cursors\place.cur" />
+    <Resource Include="Cursors\pointer.cur" />
+    <Resource Include="Cursors\text.cur" />
+    <Resource Include="Cursors\unavailiable.cur" />
+    <Resource Include="Cursors\vert.cur" />
   </ItemGroup>
 
 </Project>

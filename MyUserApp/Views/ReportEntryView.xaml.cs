@@ -1,22 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
+﻿using System.Windows.Controls;
 
 namespace MyUserApp.Views
 {
     /// <summary>
-    /// Interaction logic for ReportEntryView.xaml
+    /// The code-behind for the ReportEntryView.xaml file.
+    /// This view is "pure MVVM" and contains no business logic. All interactions and data
+    /// are handled by its corresponding ViewModel, ReportEntryViewModel.
     /// </summary>
     public partial class ReportEntryView : UserControl
     {

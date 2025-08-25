@@ -22,7 +22,7 @@
         <!-- A StackPanel arranges the form elements vertically. -->
         <StackPanel Width="250">
             <!-- Header text for the login form. -->
-            <TextBlock Text="Welcome" FontSize="28" FontWeight="Bold" Margin="0,0,0,5" HorizontalAlignment="Center"
+            <TextBlock Text="Welcome to nDEX" FontSize="28" FontWeight="Bold" Margin="0,0,0,5" HorizontalAlignment="Center"
                        Foreground="{DynamicResource PrimaryTextBrush}"/>
             <TextBlock Text="Please sign in to continue" FontSize="14" Margin="0,0,0,25" HorizontalAlignment="Center"
                        Foreground="{DynamicResource SecondaryTextBrush}"/>
