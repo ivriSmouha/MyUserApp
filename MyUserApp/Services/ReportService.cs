@@ -73,5 +73,43 @@ namespace MyUserApp.Services
         {
             return _allReports.OrderByDescending(r => r.LastModifiedDate).ToList();
         }
+
+        /// <summary>
+        /// Safely counts the number of projects a user is assigned to without modifying data.
+        /// </summary>
+        /// <returns>A tuple containing the count of projects as Inspector and Verifier.</returns>
+        public (int inspectorCount, int verifierCount) GetProjectCountsForUser(string username)
+        {
+            int inspectorCount = _allReports.Count(r => r.InspectorName == username);
+            int verifierCount = _allReports.Count(r => r.VerifierName == username);
+            return (inspectorCount, verifierCount);
+        }
+
+
+        /// <summary>
+        /// Reassigns all projects from an old user to a new user directly in memory and saves to disk.
+        /// </summary>
+        public void ReassignProjects(string oldUsername, string newUsername)
+        {
+            bool changesMade = false;
+            foreach (var report in _allReports)
+            {
+                if (report.InspectorName == oldUsername)
+                {
+                    report.InspectorName = newUsername;
+                    changesMade = true;
+                }
+                if (report.VerifierName == oldUsername)
+                {
+                    report.VerifierName = newUsername;
+                    changesMade = true;
+                }
+            }
+
+            if (changesMade)
+            {
+                SaveReports();
+            }
+        }
     }
 }

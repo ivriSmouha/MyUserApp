@@ -11,6 +11,7 @@ namespace MyUserApp.Services
     public class UserService
     {
         private const string FilePath = "users.json";
+        public const string DeletedUserUsername = "[Deleted User]";
 
         // --- Singleton Pattern ---
         private static readonly UserService _instance = new UserService();
@@ -32,8 +33,7 @@ namespace MyUserApp.Services
             if (File.Exists(FilePath))
             {
                 var json = File.ReadAllText(FilePath);
-                // The deserialized list is used to create the ObservableCollection.
-                var usersFromFile = JsonSerializer.Deserialize<ObservableCollection<UserModel>>(json);
+                var usersFromFile = JsonSerializer.Deserialize<ObservableCollection<UserModel>>(json) ?? new ObservableCollection<UserModel>();
                 Users = new ObservableCollection<UserModel>(usersFromFile);
             }
             else
@@ -44,7 +44,20 @@ namespace MyUserApp.Services
                     new UserModel { Username = "admin", Password = "123", IsAdmin = true }
                 };
             }
+
+            EnsureSpecialUsersExist();
         }
+
+        private void EnsureSpecialUsersExist()
+        {
+            // Ensure the special "[Deleted User]" account exists.
+            if (!Users.Any(u => u.Username == DeletedUserUsername))
+            {
+                Users.Add(new UserModel { Username = DeletedUserUsername, Password = "000", IsAdmin = false });
+                SaveUsers();
+            }
+        }
+
 
         private void SaveUsers()
         {
@@ -55,12 +68,41 @@ namespace MyUserApp.Services
         // The logic for adding a user now lives here.
         public void AddUser(UserModel newUser)
         {
-            if (Users.Any(u => u.Username == newUser.Username))
+            if (Users.Any(u => u.Username.Equals(newUser.Username, System.StringComparison.OrdinalIgnoreCase)))
             {
                 MessageBox.Show("Username already exists.");
                 return;
             }
+
+            if (newUser.Username == DeletedUserUsername)
+            {
+                MessageBox.Show($"'{DeletedUserUsername}' is a reserved username and cannot be created.", "Reserved Username");
+                return;
+            }
             Users.Add(newUser);
+            SaveUsers();
+        }
+
+
+        /// <summary>
+        /// Deletes a user after reassigning their projects to the special "[Deleted User]" account.
+        /// </summary>
+        public void DeleteUserAndReassignProjects(UserModel userToDelete)
+        {
+            if (userToDelete == null || userToDelete.Username == "admin" || userToDelete.Username == DeletedUserUsername)
+            {
+                // This is a safety check. The UI should prevent this.
+                MessageBox.Show("This user cannot be deleted.", "Deletion Not Allowed");
+                return;
+            }
+
+            // Step 1: Reassign projects.
+            ReportService.Instance.ReassignProjects(userToDelete.Username, DeletedUserUsername);
+
+            // Step 2: Remove the user from the collection.
+            Users.Remove(userToDelete);
+
+            // Step 3: Save the updated user list.
             SaveUsers();
         }
     }

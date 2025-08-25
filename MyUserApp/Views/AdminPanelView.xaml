@@ -2,7 +2,10 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:viewmodels="clr-namespace:MyUserApp.ViewModels" d:DataContext="{d:DesignInstance Type=viewmodels:AdminPanelViewModel}"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:viewmodels="clr-namespace:MyUserApp.ViewModels" 
+             xmlns:services="clr-namespace:MyUserApp.Services"
+             d:DataContext="{d:DesignInstance Type=viewmodels:AdminPanelViewModel}"
              mc:Ignorable="d" 
              d:DesignHeight="500" d:DesignWidth="1000">
     <Grid Margin="15">
@@ -18,25 +21,13 @@
 
         <TabControl Grid.Row="1" Margin="0,15,0,0">
             <TabItem Header="User Management">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="182*"/>
-                        <ColumnDefinition Width="25*"/>
-                        <ColumnDefinition Width="757*"/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <ListView Grid.Row="0" ItemsSource="{Binding Users}" Margin="5,5,5,5" Grid.ColumnSpan="3">
-                        <ListView.View>
-                            <GridView>
-                                <GridViewColumn Header="Username" DisplayMemberBinding="{Binding Username}" Width="250"/>
-                                <GridViewColumn Header="Is Admin" DisplayMemberBinding="{Binding IsAdmin}" Width="100"/>
-                            </GridView>
-                        </ListView.View>
-                    </ListView>
-                    <GroupBox Grid.Row="1" Header="Add New User" FontWeight="Bold" Margin="5,5,5,5" Grid.ColumnSpan="3">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="5,5,5,10">
+                        <TextBlock Text="Filter by Username:" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                        <TextBox Width="200" Margin="5,0" Text="{Binding UserFilterText, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+
+                    <GroupBox DockPanel.Dock="Bottom" Header="Add New User" FontWeight="Bold" Margin="5,5,5,5">
                         <Grid Margin="5">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -54,7 +45,42 @@
                             <Button Grid.Column="5" Content="Add User" Margin="5" Command="{Binding AddUserCommand}"/>
                         </Grid>
                     </GroupBox>
-                </Grid>
+
+                    <DataGrid ItemsSource="{Binding UsersView}" 
+                              AutoGenerateColumns="False" 
+                              IsReadOnly="True" 
+                              CanUserSortColumns="True"
+                              SelectionMode="Single" Margin="5,0,5,5">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Username" Binding="{Binding Username}" Width="*"/>
+                            <DataGridTextColumn Header="Password" Binding="{Binding Password}" Width="*"/>
+                            <DataGridCheckBoxColumn Header="Is Admin" Binding="{Binding IsAdmin}" Width="100"/>
+                            <DataGridTemplateColumn Header="Actions" Width="100">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="Delete" Command="{Binding DataContext.DeleteUserCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="IsEnabled" Value="True"/>
+                                                    <Style.Triggers>
+                                                        <!-- Disable delete for the main 'admin' -->
+                                                        <DataTrigger Binding="{Binding Username}" Value="admin">
+                                                            <Setter Property="IsEnabled" Value="False"/>
+                                                        </DataTrigger>
+                                                        <!-- Disable delete for the special '[Deleted User]' -->
+                                                        <DataTrigger Binding="{Binding Username}" Value="{x:Static services:UserService.DeletedUserUsername}">
+                                                            <Setter Property="IsEnabled" Value="False"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
             </TabItem>
 
             <TabItem Header="Options Management">
@@ -75,7 +101,7 @@
                             <ListView Grid.Row="0" ItemsSource="{Binding AppOptions.AircraftTypes}">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid Width="200">
+                                        <Grid Width="Auto">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
@@ -103,7 +129,7 @@
                             <ListView Grid.Row="0" ItemsSource="{Binding AppOptions.TailNumbers}">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid Width="200">
+                                        <Grid Width="Auto">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
@@ -130,7 +156,7 @@
                             <ListView Grid.Row="0" ItemsSource="{Binding AppOptions.AircraftSides}">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid Width="200">
+                                        <Grid Width="Auto">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
@@ -158,7 +184,7 @@
                             <ListView Grid.Row="0" ItemsSource="{Binding AppOptions.Reasons}">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid Width="200">
+                                        <Grid Width="Auto">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>

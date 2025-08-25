@@ -2,6 +2,9 @@
 using MyUserApp.Services;
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Windows;
+using System.Windows.Data;
 using System.Windows.Input;
 
 namespace MyUserApp.ViewModels
@@ -13,7 +16,19 @@ namespace MyUserApp.ViewModels
     public class AdminPanelViewModel : BaseViewModel
     {
         // --- User Management Properties ---
-        public ObservableCollection<UserModel> Users => UserService.Instance.Users;
+        public ICollectionView UsersView { get; }
+
+        private string _userFilterText;
+        public string UserFilterText
+        {
+            get => _userFilterText;
+            set
+            {
+                _userFilterText = value;
+                OnPropertyChanged();
+                UsersView.Refresh(); // Trigger the filter to re-evaluate
+            }
+        }
 
         private string _newUsername;
         public string NewUsername { get => _newUsername; set { _newUsername = value; OnPropertyChanged(); ((RelayCommand)AddUserCommand).RaiseCanExecuteChanged(); } }
@@ -36,13 +51,13 @@ namespace MyUserApp.ViewModels
         private string _newReason;
         public string NewReason { get => _newReason; set { _newReason = value; OnPropertyChanged(); ((RelayCommand)AddReasonCommand).RaiseCanExecuteChanged(); } }
 
-        // --- ADDED: Property for Tail Number input to fix binding error ---
         private string _newTailNumber;
         public string NewTailNumber { get => _newTailNumber; set { _newTailNumber = value; OnPropertyChanged(); ((RelayCommand)AddTailNumberCommand).RaiseCanExecuteChanged(); } }
 
 
         // --- Commands ---
         public ICommand AddUserCommand { get; }
+        public ICommand DeleteUserCommand { get; }
         public ICommand LogoutCommand { get; }
         public ICommand AddAircraftTypeCommand { get; }
         public ICommand DeleteAircraftTypeCommand { get; }
@@ -50,8 +65,6 @@ namespace MyUserApp.ViewModels
         public ICommand DeleteAircraftSideCommand { get; }
         public ICommand AddReasonCommand { get; }
         public ICommand DeleteReasonCommand { get; }
-
-        // --- ADDED: Commands for Tail Number buttons to fix binding errors ---
         public ICommand AddTailNumberCommand { get; }
         public ICommand DeleteTailNumberCommand { get; }
 
@@ -62,11 +75,15 @@ namespace MyUserApp.ViewModels
 
         public AdminPanelViewModel()
         {
-            // Initialize User commands
+            // --- User Management ---
+            UsersView = CollectionViewSource.GetDefaultView(UserService.Instance.Users);
+            UsersView.Filter = FilterUsers;
+
             AddUserCommand = new RelayCommand(AddNewUser, _ => CanAddNewUser());
+            DeleteUserCommand = new RelayCommand(DeleteUser);
             LogoutCommand = new RelayCommand(param => OnLogoutRequested?.Invoke());
 
-            // Initialize Options commands
+            // --- Options Management ---
             AddAircraftTypeCommand = new RelayCommand(AddAircraftType, _ => !string.IsNullOrEmpty(NewAircraftType));
             DeleteAircraftTypeCommand = new RelayCommand(DeleteAircraftType);
 
@@ -76,12 +93,25 @@ namespace MyUserApp.ViewModels
             AddReasonCommand = new RelayCommand(AddReason, _ => !string.IsNullOrEmpty(NewReason));
             DeleteReasonCommand = new RelayCommand(DeleteReason);
 
-            // --- ADDED: Initialize the new Tail Number commands ---
             AddTailNumberCommand = new RelayCommand(AddTailNumber, _ => !string.IsNullOrEmpty(NewTailNumber));
             DeleteTailNumberCommand = new RelayCommand(DeleteTailNumber);
         }
 
         #region User Management Methods
+
+        private bool FilterUsers(object item)
+        {
+            if (string.IsNullOrWhiteSpace(UserFilterText))
+            {
+                return true; // No filter text, show all users.
+            }
+            if (item is UserModel user)
+            {
+                return user.Username.Contains(UserFilterText, StringComparison.OrdinalIgnoreCase);
+            }
+            return false;
+        }
+
         private bool CanAddNewUser() => !string.IsNullOrEmpty(NewUsername) && !string.IsNullOrEmpty(NewPassword);
 
         private void AddNewUser(object obj)
@@ -93,6 +123,27 @@ namespace MyUserApp.ViewModels
             NewUsername = "";
             NewPassword = "";
             NewUserIsAdmin = false;
+        }
+
+        private void DeleteUser(object obj)
+        {
+            if (obj is UserModel userToDelete)
+            {
+                // Step 1: Get the counts for the confirmation message without changing data.
+                var (inspectorCount, verifierCount) = ReportService.Instance.GetProjectCountsForUser(userToDelete.Username);
+
+                string message = $"Are you sure you want to delete the user '{userToDelete.Username}'?\n\n" +
+                                 $"This will reassign all of their projects to the '{UserService.DeletedUserUsername}' account.\n" +
+                                 $"Projects affected: {inspectorCount} as Inspector, {verifierCount} as Verifier.\n\n" +
+                                 "This action cannot be undone.";
+
+                // Step 2: Show the confirmation box.
+                if (MessageBox.Show(message, "Confirm Deletion", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                {
+                    // Step 3: If confirmed, execute the deletion and reassignment.
+                    UserService.Instance.DeleteUserAndReassignProjects(userToDelete);
+                }
+            }
         }
         #endregion
 
@@ -146,7 +197,6 @@ namespace MyUserApp.ViewModels
             }
         }
 
-        // --- ADDED: Methods for adding and deleting Tail Numbers ---
         private void AddTailNumber(object obj)
         {
             OptionsService.Instance.AddTailNumber(NewTailNumber);
