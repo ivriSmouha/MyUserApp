@@ -22,7 +22,7 @@
         <DockPanel Grid.Row="0" Margin="0,0,0,10">
             <TextBlock Text="Administrator Panel" FontSize="24" FontWeight="Bold" VerticalAlignment="Center"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <!-- UPDATED: Corrected the binding to point to the new command -->
+                <!-- THIS BUTTON BINDING IS NOW CORRECTED -->
                 <Button Style="{DynamicResource IconButtonToolBarStyle}" Command="{Binding SwitchThemeCommand}"
                         ToolTip="Switch Theme">
                     <iconPacks:PackIconModern Kind="WeatherSun" />
@@ -122,7 +122,6 @@
                                     <DataGridTemplateColumn Width="Auto">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <!-- UPDATED: Replaced 'X' button with a consistent icon button -->
                                                 <Button Style="{DynamicResource IconButtonToolBarStyle}" Padding="5" Width="28" Height="28"
                                                         Command="{Binding DataContext.DeleteAircraftTypeCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
                                                         CommandParameter="{Binding}">
@@ -154,7 +153,6 @@
                                     <DataGridTemplateColumn Width="Auto">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <!-- UPDATED: Replaced 'X' button with a consistent icon button -->
                                                 <Button Style="{DynamicResource IconButtonToolBarStyle}" Padding="5" Width="28" Height="28"
                                                         Command="{Binding DataContext.DeleteTailNumberCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
                                                         CommandParameter="{Binding}">
@@ -186,7 +184,6 @@
                                     <DataGridTemplateColumn Width="Auto">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <!-- UPDATED: Replaced 'X' button with a consistent icon button -->
                                                 <Button Style="{DynamicResource IconButtonToolBarStyle}" Padding="5" Width="28" Height="28"
                                                         Command="{Binding DataContext.DeleteAircraftSideCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
                                                         CommandParameter="{Binding}">
@@ -218,7 +215,6 @@
                                     <DataGridTemplateColumn Width="Auto">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <!-- UPDATED: Replaced 'X' button with a consistent icon button -->
                                                 <Button Style="{DynamicResource IconButtonToolBarStyle}" Padding="5" Width="28" Height="28"
                                                         Command="{Binding DataContext.DeleteReasonCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
                                                         CommandParameter="{Binding}">

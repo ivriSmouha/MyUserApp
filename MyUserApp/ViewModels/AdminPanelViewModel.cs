@@ -50,11 +50,11 @@ namespace MyUserApp.ViewModels
         private string _newTailNumber;
         public string NewTailNumber { get => _newTailNumber; set { _newTailNumber = value; OnPropertyChanged(); ((RelayCommand)AddTailNumberCommand).RaiseCanExecuteChanged(); } }
 
-
         // --- Commands ---
         public ICommand AddUserCommand { get; }
         public ICommand DeleteUserCommand { get; }
         public ICommand LogoutCommand { get; }
+        public ICommand SwitchThemeCommand { get; } // ADDED THIS LINE
         public ICommand AddAircraftTypeCommand { get; }
         public ICommand DeleteAircraftTypeCommand { get; }
         public ICommand AddAircraftSideCommand { get; }
@@ -76,6 +76,9 @@ namespace MyUserApp.ViewModels
             AddUserCommand = new RelayCommand(AddNewUser, _ => CanAddNewUser());
             DeleteUserCommand = new RelayCommand(DeleteUser);
             LogoutCommand = new RelayCommand(param => OnLogoutRequested?.Invoke());
+
+            // ADDED THIS LINE: Initialize the command to call the simple ThemeService.
+            SwitchThemeCommand = new RelayCommand(_ => ThemeService.Instance.SwitchTheme());
 
             // --- Options Management ---
             AddAircraftTypeCommand = new RelayCommand(AddAircraftType, _ => !string.IsNullOrEmpty(NewAircraftType));
