@@ -17,7 +17,6 @@
 
     <!-- Defines resources used within this UserControl, primarily value converters. -->
     <UserControl.Resources>
-        <converters:SelectedToBorderBrushConverter x:Key="SelectedToBorderBrushConverter"/>
         <converters:FullPathToFileNameConverter x:Key="FullPathToFileNameConverter"/>
         <converters:PathToBitmapImageConverter x:Key="PathToBitmapImageConverter"/>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>

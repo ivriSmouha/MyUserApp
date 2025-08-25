@@ -18,6 +18,15 @@
 
   <ItemGroup>
     <Compile Remove="Converters\AuthorToBrushConverter.cs" />
+    <Compile Remove="Converters\ImageAwareSizeConverter.cs" />
+    <Compile Remove="Converters\RelativePositionConverter.cs" />
+    <Compile Remove="Converters\RelativeSizeConverter.cs" />
+    <Compile Remove="Converters\SelectedToBorderBrushConverter.cs" />
+    <Compile Remove="Converters\SelectedToBrushConverter.cs" />
+    <Compile Remove="Converters\SelectedToStrokeThicknessConverter.cs" />
+    <Compile Remove="Converters\SimpleImagePositionConverter.cs" />
+    <Compile Remove="Converters\SimpleImageSizeConverter.cs" />
+    <Compile Remove="Services\ImageExportService.cs" />
     <Compile Remove="ViewModels\DashboardViewModel.cs" />
   </ItemGroup>
 
