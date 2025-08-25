@@ -1,4 +1,6 @@
-﻿<Window x:Class="MyUserApp.MainWindow"
+﻿<!-- This is the main application window, which serves as the host or "shell" for all other views. -->
+<!-- It does not contain any specific UI itself, but rather a ContentControl that displays the current active view. -->
+<Window x:Class="MyUserApp.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -10,10 +12,19 @@
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource PrimaryBackgroundBrush}"
         Closing="Window_Closing">
+    <!-- The Closing event is handled in the code-behind to manage application shutdown, such as prompting to save unsaved work. -->
 
+    <!-- This section sets the DataContext for the entire window. -->
+    <!-- An instance of MainViewModel is created here, which will manage the application's state and navigation. -->
     <Window.DataContext>
         <viewmodels:MainViewModel/>
     </Window.DataContext>
 
+    <!-- This is the core of the navigation system. -->
+    <!-- Its Content is bound to the 'CurrentView' property on the MainViewModel. -->
+    <!-- Based on the DataTemplates defined in App.xaml, this control will automatically display -->
+    <!-- the correct View (e.g., LoginView, ProjectHubView) that corresponds to the -->
+    <!-- ViewModel currently held by the 'CurrentView' property. -->
     <ContentControl Content="{Binding CurrentView}"/>
+
 </Window>

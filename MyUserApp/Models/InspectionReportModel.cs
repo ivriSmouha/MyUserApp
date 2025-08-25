@@ -1,33 +1,79 @@
-﻿// File: MyUserApp/Models/InspectionReportModel.cs
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel; // Required for ObservableCollection
+using System.Collections.ObjectModel;
 
 namespace MyUserApp.Models
 {
     /// <summary>
-    /// Represents a single, complete inspection report.
+    /// Represents the complete data model for a single inspection report.
+    /// This class aggregates all information related to an inspection.
     /// </summary>
     public class InspectionReportModel
     {
-        public Guid ReportId { get; set; } = Guid.NewGuid();
-        public string ProjectName { get; set; }
-        public DateTime CreationDate { get; set; } = DateTime.Now;
-        public DateTime LastModifiedDate { get; set; } = DateTime.Now;
-        public string AircraftType { get; set; }
-        public string TailNumber { get; set; }
-        public string AircraftSide { get; set; }
-        public string Reason { get; set; }
-        public string InspectorName { get; set; }
-        public string VerifierName { get; set; }
-        public List<string> ImagePaths { get; set; } = new List<string>();
         /// <summary>
-        /// Stores all annotations for the report, keyed by the image file path.
-        /// This allows the application to save and load the user's work.
-        /// We use List<AnnotationModel> for serialization, as ObservableCollection is for UI.
+        /// A unique identifier for the report.
+        /// </summary>
+        public Guid ReportId { get; set; } = Guid.NewGuid();
+
+        /// <summary>
+        /// The user-facing name of the project, often generated from other details.
+        /// </summary>
+        public string ProjectName { get; set; }
+
+        /// <summary>
+        /// The date and time when the report was first created.
+        /// </summary>
+        public DateTime CreationDate { get; set; } = DateTime.Now;
+
+        /// <summary>
+        /// The date and time when the report was last modified.
+        /// </summary>
+        public DateTime LastModifiedDate { get; set; } = DateTime.Now;
+
+        /// <summary>
+        /// The type of aircraft being inspected.
+        /// </summary>
+        public string AircraftType { get; set; }
+
+        /// <summary>
+        /// The unique tail number or identifier of the aircraft.
+        /// </summary>
+        public string TailNumber { get; set; }
+
+        /// <summary>
+        /// The specific side or section of the aircraft under inspection.
+        /// </summary>
+        public string AircraftSide { get; set; }
+
+        /// <summary>
+        /// The reason or purpose for conducting the inspection.
+        /// </summary>
+        public string Reason { get; set; }
+
+        /// <summary>
+        /// The username of the inspector assigned to this report.
+        /// </summary>
+        public string InspectorName { get; set; }
+
+        /// <summary>
+        /// The username of the verifier assigned to this report.
+        /// </summary>
+        public string VerifierName { get; set; }
+
+        /// <summary>
+        /// A list of full file paths to the images included in this report.
+        /// </summary>
+        public List<string> ImagePaths { get; set; } = new List<string>();
+
+        /// <summary>
+        /// A dictionary that maps an image file path to its list of annotations.
+        /// This structure is used for saving and loading annotations.
         /// </summary>
         public Dictionary<string, List<AnnotationModel>> AnnotationsByImage { get; set; } = new Dictionary<string, List<AnnotationModel>>();
-        public Dictionary<string, ImageAdjustmentModel> AdjustmentsByImage { get; set; } = new Dictionary<string, ImageAdjustmentModel>();
 
+        /// <summary>
+        /// A dictionary that maps an image file path to its brightness/contrast adjustments.
+        /// </summary>
+        public Dictionary<string, ImageAdjustmentModel> AdjustmentsByImage { get; set; } = new Dictionary<string, ImageAdjustmentModel>();
     }
 }

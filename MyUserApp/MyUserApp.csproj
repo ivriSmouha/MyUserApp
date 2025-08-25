@@ -17,6 +17,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="Converters\AuthorToBrushConverter.cs" />
+    <Compile Remove="ViewModels\DashboardViewModel.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Remove="Assets\placeholder.png" />
   </ItemGroup>
 

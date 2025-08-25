@@ -1,41 +1,44 @@
-﻿// File: MyUserApp/Converters/FullPathToFileNameConverter.cs
-using System;
+﻿using System;
 using System.Globalization;
-using System.IO; // Required for Path.GetFileName
+using System.IO; // Required for Path operations
 using System.Windows.Data;
 
 namespace MyUserApp.Converters
 {
     /// <summary>
-    /// Converts a full file path string into just the file name for display purposes.
-    /// For example: "C:\Users\...\ReportImages\guid\image.jpg" becomes "image.jpg".
+    /// A value converter that extracts just the file name from a full file path string.
+    /// Example: "C:\folder\image.jpg" becomes "image.jpg".
     /// </summary>
     public class FullPathToFileNameConverter : IValueConverter
     {
+        /// <summary>
+        /// Converts a full path string to just the file name.
+        /// </summary>
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            // Check if the incoming value is a valid string.
+            // Ensure the input value is a non-empty string.
             if (value is string fullPath && !string.IsNullOrEmpty(fullPath))
             {
                 try
                 {
-                    // Use the built-in System.IO.Path class to safely get the file name.
+                    // Use the robust Path.GetFileName method to extract the file name.
                     return Path.GetFileName(fullPath);
                 }
                 catch (ArgumentException)
                 {
-                    // If the path contains invalid characters, return it as is.
+                    // In case of an invalid path, return the original string.
                     return fullPath;
                 }
             }
-
-            // If the value is not a string or is empty, return an empty string.
+            // Return empty for null or empty input.
             return string.Empty;
         }
 
+        /// <summary>
+        /// Converts a file name back to a full path. This is not implemented.
+        /// </summary>
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            // This converter only works one way (from full path to file name).
             throw new NotImplementedException();
         }
     }

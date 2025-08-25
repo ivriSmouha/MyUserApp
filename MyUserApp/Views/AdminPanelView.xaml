@@ -1,4 +1,5 @@
-﻿<!-- File: MyUserApp/Views/AdminPanelView.xaml -->
+﻿<!-- This UserControl defines the UI for the Administrator Panel. -->
+<!-- It provides tools for managing users and application-wide dropdown options. -->
 <UserControl x:Class="MyUserApp.Views.AdminPanelView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -12,34 +13,50 @@
              d:DesignHeight="500" d:DesignWidth="1000"
              Background="{DynamicResource PrimaryBackgroundBrush}">
 
+    <!-- Main layout grid for the entire view. -->
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <!-- Row for the header -->
             <RowDefinition Height="*"/>
+            <!-- Row for the main content area -->
         </Grid.RowDefinitions>
 
-        <!-- Header -->
+        <!-- =================================================================== -->
+        <!-- ==                           HEADER                              == -->
+        <!-- =================================================================== -->
         <DockPanel Grid.Row="0" Margin="0,0,0,10">
+            <!-- Panel Title -->
             <TextBlock Text="Administrator Panel" FontSize="24" FontWeight="Bold" VerticalAlignment="Center"/>
+
+            <!-- Action buttons docked to the right -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <!-- THIS BUTTON BINDING IS NOW CORRECTED -->
+                <!-- Button to switch the application's visual theme. -->
                 <Button Style="{DynamicResource IconButtonToolBarStyle}" Command="{Binding SwitchThemeCommand}"
                         ToolTip="Switch Theme">
                     <iconPacks:PackIconModern Kind="WeatherSun" />
                 </Button>
+                <!-- Button to log out and return to the login screen. -->
                 <Button Content="Logout" Command="{Binding LogoutCommand}" Style="{DynamicResource SecondaryButtonStyle}" Margin="10,0,0,0"/>
             </StackPanel>
         </DockPanel>
 
-        <!-- Main Content -->
+        <!-- =================================================================== -->
+        <!-- ==                         MAIN CONTENT                          == -->
+        <!-- =================================================================== -->
+        <!-- Tab control to separate User Management from Options Management. -->
         <TabControl Grid.Row="1" Margin="0,15,0,0">
+
+            <!-- ======================= USER MANAGEMENT TAB ======================= -->
             <TabItem Header="User Management">
                 <DockPanel>
+                    <!-- Top section for filtering the user list. -->
                     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="5,5,5,10">
                         <TextBlock Text="Filter by Username:" VerticalAlignment="Center" FontWeight="SemiBold"/>
                         <TextBox Width="200" Margin="5,0" Text="{Binding UserFilterText, UpdateSourceTrigger=PropertyChanged}"/>
                     </StackPanel>
 
+                    <!-- Bottom section for adding a new user. -->
                     <GroupBox DockPanel.Dock="Bottom" Header="Add New User" Margin="5,15,5,5">
                         <Grid Margin="5">
                             <Grid.ColumnDefinitions>
@@ -59,27 +76,37 @@
                         </Grid>
                     </GroupBox>
 
+                    <!-- DataGrid to display the list of users. -->
                     <DataGrid ItemsSource="{Binding UsersView}" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Username" Binding="{Binding Username}" Width="*"/>
                             <DataGridTextColumn Header="Password" Binding="{Binding Password}" Width="*"/>
                             <DataGridCheckBoxColumn Header="Is Admin" Binding="{Binding IsAdmin}" Width="100"/>
+
+                            <!-- Template column for action buttons (e.g., Delete). -->
                             <DataGridTemplateColumn Header="Actions" Width="100">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
+                                        <!-- The Delete button for each user row. -->
+                                        <!-- Command binds to the main DataContext (AdminPanelViewModel). -->
+                                        <!-- CommandParameter is the user object for the current row. -->
                                         <Button Command="{Binding DataContext.DeleteUserCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
                                                 CommandParameter="{Binding}">
                                             <StackPanel Orientation="Horizontal">
                                                 <iconPacks:PackIconModern Kind="Delete" VerticalAlignment="Center" Margin="0,0,5,0" Width="12" Height="12"/>
                                                 <TextBlock Text="Delete"/>
                                             </StackPanel>
+
+                                            <!-- Style with triggers to disable deletion for protected users. -->
                                             <Button.Style>
                                                 <Style TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
                                                     <Setter Property="IsEnabled" Value="True"/>
                                                     <Style.Triggers>
+                                                        <!-- Disable delete for the 'admin' user. -->
                                                         <DataTrigger Binding="{Binding Username}" Value="admin">
                                                             <Setter Property="IsEnabled" Value="False"/>
                                                         </DataTrigger>
+                                                        <!-- Disable delete for the special 'deleted_user' account. -->
                                                         <DataTrigger Binding="{Binding Username}" Value="{x:Static services:UserService.DeletedUserUsername}">
                                                             <Setter Property="IsEnabled" Value="False"/>
                                                         </DataTrigger>
@@ -95,7 +122,9 @@
                 </DockPanel>
             </TabItem>
 
+            <!-- ======================= OPTIONS MANAGEMENT TAB ======================= -->
             <TabItem Header="Options Management">
+                <!-- Grid to layout the four option management sections. -->
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -104,21 +133,19 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
+                    <!-- Section for managing Aircraft Types. -->
                     <GroupBox Grid.Column="0" Header="Aircraft Types" Margin="5">
                         <DockPanel>
+                            <!-- Input area for adding a new type. -->
                             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,10,0,0">
                                 <TextBox Text="{Binding NewAircraftType, UpdateSourceTrigger=PropertyChanged}" Width="120" Margin="0,0,5,0"/>
                                 <Button Content="Add" Command="{Binding AddAircraftTypeCommand}"/>
                             </StackPanel>
+                            <!-- DataGrid to display existing aircraft types. -->
                             <DataGrid ItemsSource="{Binding AppOptions.AircraftTypes}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="False" HeadersVisibility="Column">
                                 <DataGrid.Columns>
-                                    <DataGridTemplateColumn Header="Type" Width="*">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <TextBlock Text="{Binding}" VerticalAlignment="Center" Margin="5,0"/>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="Type" Binding="{Binding}" Width="*"/>
+                                    <!-- Template column for the delete button. -->
                                     <DataGridTemplateColumn Width="Auto">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
@@ -135,21 +162,17 @@
                         </DockPanel>
                     </GroupBox>
 
+                    <!-- Section for managing Tail Numbers. -->
                     <GroupBox Grid.Column="1" Header="Tail Numbers" Margin="5">
                         <DockPanel>
+                            <!-- Input area for adding a new tail number. -->
                             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,10,0,0">
                                 <TextBox Text="{Binding NewTailNumber, UpdateSourceTrigger=PropertyChanged}" Width="120" Margin="0,0,5,0"/>
                                 <Button Content="Add" Command="{Binding AddTailNumberCommand}"/>
                             </StackPanel>
                             <DataGrid ItemsSource="{Binding AppOptions.TailNumbers}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="False" HeadersVisibility="Column">
                                 <DataGrid.Columns>
-                                    <DataGridTemplateColumn Header="Number" Width="*">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <TextBlock Text="{Binding}" VerticalAlignment="Center" Margin="5,0"/>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="Number" Binding="{Binding}" Width="*"/>
                                     <DataGridTemplateColumn Width="Auto">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
@@ -166,21 +189,17 @@
                         </DockPanel>
                     </GroupBox>
 
+                    <!-- Section for managing Aircraft Sides. -->
                     <GroupBox Grid.Column="2" Header="Aircraft Sides" Margin="5">
                         <DockPanel>
+                            <!-- Input area for adding a new side. -->
                             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,10,0,0">
                                 <TextBox Text="{Binding NewAircraftSide, UpdateSourceTrigger=PropertyChanged}" Width="120" Margin="0,0,5,0"/>
                                 <Button Content="Add" Command="{Binding AddAircraftSideCommand}"/>
                             </StackPanel>
                             <DataGrid ItemsSource="{Binding AppOptions.AircraftSides}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="False" HeadersVisibility="Column">
                                 <DataGrid.Columns>
-                                    <DataGridTemplateColumn Header="Side" Width="*">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <TextBlock Text="{Binding}" VerticalAlignment="Center" Margin="5,0"/>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="Side" Binding="{Binding}" Width="*"/>
                                     <DataGridTemplateColumn Width="Auto">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
@@ -197,21 +216,17 @@
                         </DockPanel>
                     </GroupBox>
 
+                    <!-- Section for managing inspection Reasons. -->
                     <GroupBox Grid.Column="3" Header="Reasons" Margin="5">
                         <DockPanel>
+                            <!-- Input area for adding a new reason. -->
                             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,10,0,0">
                                 <TextBox Text="{Binding NewReason, UpdateSourceTrigger=PropertyChanged}" Width="120" Margin="0,0,5,0"/>
                                 <Button Content="Add" Command="{Binding AddReasonCommand}"/>
                             </StackPanel>
                             <DataGrid ItemsSource="{Binding AppOptions.Reasons}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="False" HeadersVisibility="Column">
                                 <DataGrid.Columns>
-                                    <DataGridTemplateColumn Header="Reason" Width="*">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <TextBlock Text="{Binding}" VerticalAlignment="Center" Margin="5,0"/>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="Reason" Binding="{Binding}" Width="*"/>
                                     <DataGridTemplateColumn Width="Auto">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>

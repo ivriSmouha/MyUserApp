@@ -1,4 +1,5 @@
-﻿<!-- File: MyUserApp/App.xaml -->
+﻿<!-- This is the main application definition file. -->
+<!-- It specifies the startup window and defines application-level resources like styles and DataTemplates. -->
 <Application x:Class="MyUserApp.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -7,30 +8,41 @@
              xmlns:views="clr-namespace:MyUserApp.Views"
              StartupUri="MainWindow.xaml">
 
-    <!-- The Resources section is now corrected and properly nested -->
+    <!-- Application.Resources defines a global resource dictionary available to all windows and controls in the app. -->
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <!-- 
-                This is the key change. We ONLY load the default theme file.
-                The theme file itself is now responsible for loading Styles.xaml.
-                -->
+                <!-- This section merges resource dictionaries from other files. -->
+                <!-- The application is set up to load a single theme file (e.g., DarkTheme.xaml or LightTheme.xaml). -->
+                <!-- This theme file is then responsible for loading other shared style resources, -->
+                <!-- making it easy to switch themes by changing just one source file. -->
                 <ResourceDictionary Source="Themes/DarkTheme.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- DataTemplates to connect ViewModels to Views -->
+            <!-- =================================================================== -->
+            <!-- ==             ViewModel-to-View Mapping DataTemplates           == -->
+            <!-- =================================================================== -->
+            <!-- These DataTemplates are a core part of the MVVM navigation. -->
+            <!-- They tell WPF which View to automatically render whenever it encounters -->
+            <!-- a specific ViewModel type as content. For example, when the MainViewModel's -->
+            <!-- CurrentView property is set to a LoginViewModel, WPF finds the -->
+            <!-- template below and displays a LoginView. -->
             <DataTemplate DataType="{x:Type viewmodels:LoginViewModel}">
                 <views:LoginView/>
             </DataTemplate>
+
             <DataTemplate DataType="{x:Type viewmodels:AdminPanelViewModel}">
                 <views:AdminPanelView/>
             </DataTemplate>
+
             <DataTemplate DataType="{x:Type viewmodels:ProjectHubViewModel}">
                 <views:ProjectHubView/>
             </DataTemplate>
+
             <DataTemplate DataType="{x:Type viewmodels:ReportEntryViewModel}">
                 <views:ReportEntryView/>
             </DataTemplate>
+
             <DataTemplate DataType="{x:Type viewmodels:ImageEditorViewModel}">
                 <views:ImageEditorView/>
             </DataTemplate>
