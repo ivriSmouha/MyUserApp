@@ -79,9 +79,9 @@
                           IsReadOnly="True" 
                           SelectionMode="Single"
                           HeadersVisibility="Column"
-                          GridLinesVisibility="None">
+                          GridLinesVisibility="None"
+                          CanUserReorderColumns="False">
 
-                    <!-- [FIX] Style for column headers with standard Hand cursor. -->
                     <DataGrid.ColumnHeaderStyle>
                         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
                             <Setter Property="Cursor" Value="Hand"/>
@@ -102,10 +102,6 @@
                         </Style>
                     </DataGrid.CellStyle>
 
-                    <!-- 
-                      [FIX] This style provides the subtle border, the row cursor, and a margin for separation.
-                      This combination creates the clean look you wanted.
-                    -->
                     <DataGrid.RowStyle>
                         <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
                             <Setter Property="BorderThickness" Value="1"/>
@@ -134,13 +130,17 @@
                         </Style>
                     </DataGrid.RowStyle>
 
+                    <!-- 
+                      [FIX] Column widths are now proportional (*) to fill space, and each has a MinWidth
+                      to ensure a horizontal scrollbar appears when the window is too small.
+                    -->
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Your Role" Binding="{Binding RoleDisplayString}" SortMemberPath="RoleDisplayString" Width="140"/>
-                        <DataGridTextColumn Header="Project Name" Binding="{Binding ProjectName}" SortMemberPath="ProjectName" Width="*"/>
-                        <DataGridTextColumn Header="Inspector" Binding="{Binding InspectorName}" SortMemberPath="InspectorName" Width="120"/>
-                        <DataGridTextColumn Header="Verifier" Binding="{Binding VerifierName}" SortMemberPath="VerifierName" Width="120"/>
-                        <DataGridTextColumn Header="Created" Binding="{Binding CreationDate, StringFormat='g'}" SortMemberPath="CreationDate" Width="130"/>
-                        <DataGridTextColumn Header="Last Modified" Binding="{Binding LastModifiedDate, StringFormat='g'}" SortMemberPath="LastModifiedDate" Width="130"/>
+                        <DataGridTextColumn Header="Your Role" Binding="{Binding RoleDisplayString}" SortMemberPath="RoleDisplayString" Width="1.2*" MinWidth="140"/>
+                        <DataGridTextColumn Header="Project Name" Binding="{Binding ProjectName}" SortMemberPath="ProjectName" Width="2*" MinWidth="150"/>
+                        <DataGridTextColumn Header="Inspector" Binding="{Binding InspectorName}" SortMemberPath="InspectorName" Width="1*" MinWidth="120"/>
+                        <DataGridTextColumn Header="Verifier" Binding="{Binding VerifierName}" SortMemberPath="VerifierName" Width="1*" MinWidth="120"/>
+                        <DataGridTextColumn Header="Created" Binding="{Binding CreationDate, StringFormat='g'}" SortMemberPath="CreationDate" Width="1.1*" MinWidth="130"/>
+                        <DataGridTextColumn Header="Last Modified" Binding="{Binding LastModifiedDate, StringFormat='g'}" SortMemberPath="LastModifiedDate" Width="1.1*" MinWidth="130"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </DockPanel>
