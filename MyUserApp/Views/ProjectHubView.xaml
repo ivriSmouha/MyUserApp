@@ -73,63 +73,67 @@
                     <TextBox Width="200" Margin="5,0" Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"/>
                 </StackPanel>
 
-                <!-- DataGrid to display the list of projects. -->
-                <!-- The ItemsSource is bound to a CollectionView for filtering and sorting. -->
-                <!-- SelectedItem is a two-way binding to update the ViewModel's SelectedProject property. -->
-                <DataGrid ItemsSource="{Binding ProjectsView}" SelectedItem="{Binding SelectedProject}" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single">
+                <DataGrid ItemsSource="{Binding ProjectsView}" 
+                          SelectedItem="{Binding SelectedProject}" 
+                          AutoGenerateColumns="False" 
+                          IsReadOnly="True" 
+                          SelectionMode="Single"
+                          HeadersVisibility="Column"
+                          GridLinesVisibility="None">
 
-                    <!-- Global style for all cells to increase padding and font size for better readability. -->
+                    <!-- [FIX] Style for column headers with standard Hand cursor. -->
+                    <DataGrid.ColumnHeaderStyle>
+                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
+                            <Setter Property="Cursor" Value="Hand"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource SecondaryBackgroundBrush}"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.ColumnHeaderStyle>
+
                     <DataGrid.CellStyle>
                         <Style TargetType="DataGridCell">
                             <Setter Property="Padding" Value="5"/>
                             <Setter Property="FontSize" Value="14"/>
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="{x:Type DataGridCell}">
-                                        <Border Padding="{TemplateBinding Padding}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Background="{TemplateBinding Background}" SnapsToDevicePixels="True">
-                                            <ContentPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
-                                        </Border>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="BorderThickness" Value="0"/>
                         </Style>
                     </DataGrid.CellStyle>
 
-                    <!-- Style for each row in the DataGrid. -->
+                    <!-- 
+                      [FIX] This style provides the subtle border, the row cursor, and a margin for separation.
+                      This combination creates the clean look you wanted.
+                    -->
                     <DataGrid.RowStyle>
                         <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
-                            <!-- Enables opening a project by double-clicking a row. -->
+                            <Setter Property="BorderThickness" Value="1"/>
+                            <Setter Property="Cursor" Value="Hand"/>
+                            <Setter Property="Margin" Value="0,1"/>
                             <EventSetter Event="MouseDoubleClick" Handler="ListViewItem_MouseDoubleClick" />
                             <Style.Triggers>
-                                <!-- Adds a colored border to the left of the row to indicate the user's role. -->
-                                <!-- Purple border for dual-role projects. -->
                                 <DataTrigger Binding="{Binding IsDualRole}" Value="True">
                                     <Setter Property="BorderBrush" Value="MediumOrchid"/>
-                                    <Setter Property="BorderThickness" Value="4,0,0,0"/>
                                 </DataTrigger>
-                                <!-- Blue border for Inspector-only projects. -->
                                 <MultiDataTrigger>
                                     <MultiDataTrigger.Conditions>
                                         <Condition Binding="{Binding CurrentUserRole}" Value="Inspector"/>
                                         <Condition Binding="{Binding IsDualRole}" Value="False"/>
                                     </MultiDataTrigger.Conditions>
                                     <Setter Property="BorderBrush" Value="{DynamicResource PrimaryAccentBrush}"/>
-                                    <Setter Property="BorderThickness" Value="4,0,0,0"/>
                                 </MultiDataTrigger>
-                                <!-- Gold border for Verifier-only projects. -->
                                 <MultiDataTrigger>
                                     <MultiDataTrigger.Conditions>
                                         <Condition Binding="{Binding CurrentUserRole}" Value="Verifier"/>
                                         <Condition Binding="{Binding IsDualRole}" Value="False"/>
                                     </MultiDataTrigger.Conditions>
                                     <Setter Property="BorderBrush" Value="Goldenrod"/>
-                                    <Setter Property="BorderThickness" Value="4,0,0,0"/>
                                 </MultiDataTrigger>
                             </Style.Triggers>
                         </Style>
                     </DataGrid.RowStyle>
 
-                    <!-- Defines the columns to be displayed in the DataGrid. -->
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Your Role" Binding="{Binding RoleDisplayString}" SortMemberPath="RoleDisplayString" Width="140"/>
                         <DataGridTextColumn Header="Project Name" Binding="{Binding ProjectName}" SortMemberPath="ProjectName" Width="*"/>
