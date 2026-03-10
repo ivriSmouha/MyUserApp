@@ -6,9 +6,10 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
-using System.Windows.Media.Imaging;
+using System.Windows.Media.Imaging; 
 
 namespace MyUserApp.ViewModels
 {
@@ -16,10 +17,10 @@ namespace MyUserApp.ViewModels
     /// ViewModel for the Project Hub view. This screen displays a list of projects
     /// assigned to the current user and allows them to open, filter, or create new projects.
     /// </summary>
-    public class ProjectHubViewModel : BaseViewModel
+    public class ProjectHubViewModel : BaseViewModel 
     {
         // A placeholder image URI used when no project image is available.
-        private const string DefaultImagePath = "pack://application:,,,/Assets/placeholder.png";
+        private const string DefaultImagePath = "C:\\Users\\User\\Source\\Repos\\MyUserApp\\MyUserApp\\Assets\\1.PNG";
 
         // The underlying collection of projects.
         private readonly ObservableCollection<ProjectDisplayViewModel> _recentProjects;
@@ -42,7 +43,7 @@ namespace MyUserApp.ViewModels
         private string _imageCounterText;
         public string ImageCounterText { get => _imageCounterText; private set { _imageCounterText = value; OnPropertyChanged(); } }
 
-        /// <summary>
+        /// <summary>  
         /// The currently selected project in the list.
         /// </summary>
         private ProjectDisplayViewModel _selectedProject;
@@ -53,6 +54,8 @@ namespace MyUserApp.ViewModels
             {
                 _selectedProject = value;
                 OnPropertyChanged();
+
+
                 _currentImageIndex = 0; // Reset image index on new selection.
                 UpdateImageDisplay();
                 ((RelayCommand)OpenProjectCommand).RaiseCanExecuteChanged();
@@ -81,6 +84,7 @@ namespace MyUserApp.ViewModels
         public ICommand SwitchThemeCommand { get; }
         public ICommand NextImageCommand { get; }
         public ICommand PreviousImageCommand { get; }
+        public ICommand DeleteProjectCommand { get; }
 
         // Events to signal navigation requests to the MainViewModel.
         public event Action<InspectionReportModel, AuthorType> OnOpenProjectRequested;
@@ -97,26 +101,67 @@ namespace MyUserApp.ViewModels
             _currentUser = user;
             WelcomeMessage = $"Welcome, {user.Username}!";
 
-            // Fetch reports and wrap them in ProjectDisplayViewModels.
+            // 1. טעינת הדוחות מהשירות
             var userProjects = ReportService.Instance.GetReportsForUser(user.Username);
-            _recentProjects = new ObservableCollection<ProjectDisplayViewModel>(
-                userProjects.Select(report => new ProjectDisplayViewModel(report, user))
-            );
 
-            // Set up the collection view with sorting and filtering.
+            // 2. המרה של כל הדוחות ל-ViewModels של פרויקטים
+            var allProjectsList = userProjects.Select(report => new ProjectDisplayViewModel(report, user)).ToList();
+
+            // 3. לוגיקת הקיבוץ לתקיות - זה מה שהיה חסר!
+            var groups = allProjectsList
+                .GroupBy(p => ExtractAircraftName(p.ProjectName)) // מקבץ לפי שם המטוס
+                .Select(g => new AircraftFolder
+                {
+                    AircraftName = g.Key,
+                    Projects = new ObservableCollection<ProjectDisplayViewModel>(g)
+                });
+
+            // מילוי המאפיין שה-UI מסתכל עליו
+            GroupedProjects = new ObservableCollection<AircraftFolder>(groups);
+
+            // 4. שמירה על הרשימה המקורית עבור ה-DataGrid המרכזי
+            _recentProjects = new ObservableCollection<ProjectDisplayViewModel>(allProjectsList);
             ProjectsView = CollectionViewSource.GetDefaultView(_recentProjects);
             ProjectsView.SortDescriptions.Add(new SortDescription(nameof(ProjectDisplayViewModel.LastModifiedDate), ListSortDirection.Descending));
             ProjectsView.Filter = FilterProjects;
 
-            // Initialize commands.
+            // אתחול פקודות
             NextImageCommand = new RelayCommand(ShowNextImage, _ => CanShowNextImage());
             PreviousImageCommand = new RelayCommand(ShowPreviousImage, _ => CanShowPreviousImage());
             StartNewProjectCommand = new RelayCommand(param => OnStartNewProjectRequested?.Invoke(_currentUser));
             LogoutCommand = new RelayCommand(param => OnLogoutRequested?.Invoke());
             OpenProjectCommand = new RelayCommand(OpenSelectedProject, _ => SelectedProject != null);
             SwitchThemeCommand = new RelayCommand(_ => ThemeService.Instance.SwitchTheme());
+            DeleteProjectCommand = new RelayCommand(DeleteProject);
 
             UpdateImageDisplay();
+        }
+        private string ExtractAircraftName(string projectName)
+        {
+            if (string.IsNullOrEmpty(projectName)) return "General";
+
+            // אם השם הוא "F16 - N123", הפונקציה תיקח את מה שמופיע לפני ה-מקף
+            if (projectName.Contains("-"))
+            {
+                return projectName.Split('-')[0].Trim();
+            }
+
+            // אם אין מקף, היא תיקח את המילה הראשונה
+            return projectName.Split(' ')[0].Trim();
+        }
+        // מחלקה חדשה לייצוג תיקיית מטוס
+        public class AircraftFolder
+        {
+            public string AircraftName { get; set; }
+            public ObservableCollection<ProjectDisplayViewModel> Projects { get; set; } = new ObservableCollection<ProjectDisplayViewModel>();
+        }
+
+        // בתוך ה-ProjectHubViewModel:
+        private ObservableCollection<AircraftFolder> _groupedProjects;
+        public ObservableCollection<AircraftFolder> GroupedProjects
+        {
+            get => _groupedProjects;
+            set { _groupedProjects = value; OnPropertyChanged(); }
         }
 
         /// <summary>
@@ -136,6 +181,26 @@ namespace MyUserApp.ViewModels
                        (project.RoleDisplayString?.Contains(filter, StringComparison.OrdinalIgnoreCase) ?? false);
             }
             return false;
+        }
+
+
+        private void DeleteProject(object obj)
+        {
+            if (obj is not ProjectDisplayViewModel project)
+                return;
+
+            var result = MessageBox.Show(
+                $"Delete project '{project.ProjectName}' ?",
+                "Confirm Delete",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            ReportService.Instance.DeleteReport(project.Report);
+
+            _recentProjects.Remove(project);
         }
 
         /// <summary>

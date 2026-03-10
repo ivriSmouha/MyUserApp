@@ -14,7 +14,8 @@ using System.Windows.Input; // Added for Cursor support
 
 namespace MyUserApp.ViewModels
 {
-    /// <summary>
+
+    /// <summary> 
     /// ViewModel for the main image editing screen. It manages the state and logic for
     /// viewing images, drawing annotations, adjusting image properties, and saving reports.
     /// </summary>
@@ -25,6 +26,9 @@ namespace MyUserApp.ViewModels
         private readonly InspectionReportModel _report;
         private readonly AuthorType _currentUserRole;
         private SKBitmap _currentBitmap;
+
+        public float LastCanvasWidth => _lastCanvasInfo.Width;
+        public float LastCanvasHeight => _lastCanvasInfo.Height;
 
         // Undo/Redo stacks
         private readonly Stack<IUndoableCommand> _undoStack = new Stack<IUndoableCommand>();
@@ -276,9 +280,8 @@ namespace MyUserApp.ViewModels
 
         /// <summary>
         /// Loads the currently selected image and its associated annotations into the editor.
-        /// </summary>
-        private async Task LoadImageForEditingAsync()
-        {
+         private async Task LoadImageForEditingAsync()
+         { 
             _currentBitmap?.Dispose();
             _currentBitmap = null;
             if (string.IsNullOrEmpty(SelectedImage) || !File.Exists(SelectedImage))
@@ -303,11 +306,11 @@ namespace MyUserApp.ViewModels
 
             SelectedAnnotation = null;
             ClearHistory();
-            ResetView(null);
+            ResetView(null);    
             OnPropertyChanged(nameof(BrightnessValue));
             OnPropertyChanged(nameof(ContrastValue));
             OnPropertyChanged(nameof(CurrentAnnotations));
-        }
+         }
 
         /// <summary>
         /// Saves all changes to the report model and exports the annotated images to a folder.
@@ -945,6 +948,8 @@ namespace MyUserApp.ViewModels
             SKPoint imagePixelPoint = invertedMatrix.MapPoint(screenPoint);
             return new SKPoint(imagePixelPoint.X / _currentBitmap.Width, imagePixelPoint.Y / _currentBitmap.Height);
         }
+
+
 
         /// <summary>
         /// Checks if a click at a given point hits any existing annotation.

@@ -7,6 +7,9 @@ using System.Text.Json;
 
 namespace MyUserApp.Services
 {
+
+   
+
     // Singleton service to manage all inspection report data.
     public class ReportService
     {
@@ -34,6 +37,16 @@ namespace MyUserApp.Services
         {
             var json = JsonSerializer.Serialize(_allReports, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(FilePath, json);
+        }
+
+        public void DeleteReport(InspectionReportModel report)
+        {
+            if (report == null)
+                return;
+
+            _allReports.Remove(report);
+
+            SaveReports();
         }
 
         public void AddReport(InspectionReportModel report)

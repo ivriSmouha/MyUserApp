@@ -3,6 +3,7 @@ using SkiaSharp.Views.Desktop;
 using SkiaSharp.Views.WPF;
 using System.Windows;
 using System.Windows.Controls;
+using SkiaSharp;
 using System.Windows.Input;
 
 namespace MyUserApp.Views
@@ -69,8 +70,8 @@ namespace MyUserApp.Views
             if (ViewModel == null) return;
             // Calculate the zoom factor and get the mouse position as the zoom anchor point.
             float zoomFactor = e.Delta > 0 ? 1.2f : 1 / 1.2f;
-            Point mousePos = e.GetPosition(SkiaElement);
-            ViewModel.Zoom(zoomFactor, (float)mousePos.X, (float)mousePos.Y);
+            var p = GetCanvasPoint(e);
+            ViewModel.Zoom(zoomFactor, p.X, p.Y);
         }
 
         /// <summary>
@@ -82,17 +83,15 @@ namespace MyUserApp.Views
             // Set focus to the canvas to enable keyboard shortcuts.
             SkiaElement.Focus();
             SkiaElement.CaptureMouse();
-            Point pos = e.GetPosition(SkiaElement);
+            var p = GetCanvasPoint(e);
 
-            // If the Spacebar is held down, initiate a pan operation.
             if (Keyboard.IsKeyDown(Key.Space))
             {
-                ViewModel.StartPan((float)pos.X, (float)pos.Y);
+                ViewModel.StartPan(p.X, p.Y);
             }
-            // Otherwise, start drawing an annotation.
             else
             {
-                ViewModel.StartDrawing((float)pos.X, (float)pos.Y);
+                ViewModel.StartDrawing(p.X, p.Y);
             }
         }
 
@@ -103,11 +102,11 @@ namespace MyUserApp.Views
         {
             if (e.LeftButton == MouseButtonState.Pressed && ViewModel != null)
             {
-                Point pos = e.GetPosition(SkiaElement);
-                ViewModel.UpdateInteraction((float)pos.X, (float)pos.Y);
+                var p = GetCanvasPoint(e);
+                ViewModel.UpdateInteraction(p.X, p.Y);
             }
         }
-
+          
         /// <summary>
         /// Forwards the mouse up event to the ViewModel to finalize the interaction (e.g., finish drawing).
         /// </summary>
@@ -115,8 +114,8 @@ namespace MyUserApp.Views
         {
             if (ViewModel == null) return;
             SkiaElement.ReleaseMouseCapture();
-            Point pos = e.GetPosition(SkiaElement);
-            ViewModel.EndInteraction((float)pos.X, (float)pos.Y);
+            var p = GetCanvasPoint(e);
+            ViewModel.EndInteraction(p.X, p.Y);
         }
 
         /// <summary>
@@ -138,6 +137,19 @@ namespace MyUserApp.Views
                 ViewModel.DeleteSelectedAnnotation();
                 e.Handled = true;
             }
+        }
+
+        private SKPoint GetCanvasPoint(MouseEventArgs e)
+        {
+            if (ViewModel == null)
+                return new SKPoint();
+
+            Point pos = e.GetPosition(SkiaElement);
+
+            float x = (float)(pos.X * ViewModel.LastCanvasWidth / SkiaElement.ActualWidth);
+            float y = (float)(pos.Y * ViewModel.LastCanvasHeight / SkiaElement.ActualHeight);
+
+            return new SKPoint(x, y);
         }
     }
 }

@@ -31,7 +31,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="Assets\placeholder.png" />
     <None Remove="Cursors\account.cur" />
     <None Remove="Cursors\alternate.cur" />
     <None Remove="Cursors\cross.cur" />
@@ -56,7 +55,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Resource Include="Assets\placeholder.png" />
     <Resource Include="Cursors\account.cur" />
     <Resource Include="Cursors\alternate.cur" />
     <Resource Include="Cursors\cross.cur" />
