@@ -124,11 +124,26 @@
                         </Expander>
 
                         <!-- The ListView for the image thumbnails. -->
-                        <ListView ItemsSource="{Binding ImageThumbnails}" SelectedItem="{Binding SelectedImage, Mode=TwoWay}" 
-                                  Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" Margin="0,5,0,0">
+                        <ListView ItemsSource="{Binding ImageThumbnails}" 
+          SelectedItem="{Binding SelectedImage, Mode=TwoWay}" 
+          Background="Transparent" 
+          BorderThickness="0" 
+          Margin="0,5,0,0">
+
+                            <ListView.Template>
+                                <ControlTemplate>
+                                    <ItemsPresenter />
+                                </ControlTemplate>
+                            </ListView.Template>
+
+                            <ListView.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel />
+                                </ItemsPanelTemplate>
+                            </ListView.ItemsPanel>
+
                             <ListView.ItemContainerStyle>
                                 <Style TargetType="ListViewItem">
-                                    <!-- ADDED: This makes the entire list item show a hand cursor, indicating it's clickable. -->
                                     <Setter Property="Cursor" Value="Hand"/>
                                     <Setter Property="Template">
                                         <Setter.Value>
@@ -146,13 +161,14 @@
                                     </Setter>
                                 </Style>
                             </ListView.ItemContainerStyle>
+
                             <ListView.ItemTemplate>
                                 <DataTemplate>
                                     <Grid Height="120">
                                         <Image Source="{Binding Converter={StaticResource PathToBitmapImageConverter}}" Stretch="UniformToFill"/>
                                         <Border Background="#A0000000">
                                             <TextBlock Text="{Binding Converter={StaticResource FullPathToFileNameConverter}}" Foreground="White" 
-                                                       VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="5" TextTrimming="CharacterEllipsis" ToolTip="{Binding}"/>
+                               VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="5" TextTrimming="CharacterEllipsis" ToolTip="{Binding}"/>
                                         </Border>
                                     </Grid>
                                 </DataTemplate>

@@ -6,7 +6,6 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:viewmodels="clr-namespace:MyUserApp.ViewModels" 
-             d:DataContext="{d:DesignInstance Type=viewmodels:ReportEntryViewModel}"
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="800"
              Background="{DynamicResource PrimaryBackgroundBrush}">

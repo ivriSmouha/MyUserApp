@@ -14,7 +14,7 @@ using System.Windows.Input; // Added for Cursor support
 
 namespace MyUserApp.ViewModels
 {
-
+    
     /// <summary> 
     /// ViewModel for the main image editing screen. It manages the state and logic for
     /// viewing images, drawing annotations, adjusting image properties, and saving reports.
@@ -440,7 +440,7 @@ namespace MyUserApp.ViewModels
                 return true;
             }
             return result == MessageBoxResult.No;
-        }
+        } 
         #endregion
 
         #region User Interaction and Drawing
@@ -965,7 +965,8 @@ namespace MyUserApp.ViewModels
                 if (dist <= relativeHitRadius) return annotation;
             }
             return null;
-        }
+        } 
+
 
         /// <summary>
         /// Toggles the active role between Inspector and Verifier for dual-role users.
@@ -982,11 +983,13 @@ namespace MyUserApp.ViewModels
         {
             if (annotation == null) return false;
             if (IsDualRoleUser)
-            {
+            {   
                 return annotation.Author == AuthorType.Inspector || annotation.Author == AuthorType.Verifier;
             }
             return annotation.Author == _currentUserRole;
         }
+
+
 
         /// <summary>
         /// Releases the SKBitmap resource.

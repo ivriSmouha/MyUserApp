@@ -49,6 +49,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.105.0" />
+    <PackageReference Include="FreeSpire.XLS" Version="14.2.0" />
     <PackageReference Include="MahApps.Metro.IconPacks.Material" Version="6.1.0" />
     <PackageReference Include="MahApps.Metro.IconPacks.Modern" Version="4.11.0" />
     <PackageReference Include="SkiaSharp.Views.WPF" Version="2.88.8" />

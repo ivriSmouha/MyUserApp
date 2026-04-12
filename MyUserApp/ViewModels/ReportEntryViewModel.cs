@@ -106,11 +106,36 @@ namespace MyUserApp.ViewModels
         private void SelectImages(object obj)
         {
             var openFileDialog = new OpenFileDialog { Multiselect = true, Filter = "Image Files|*.jpg;*.jpeg;*.png;*.gif;*.bmp" };
+
             if (openFileDialog.ShowDialog() == true)
             {
-                foreach (string filename in openFileDialog.FileNames)
+                // רשימה זמנית שתכיל את כל הנתיבים (החדשים והקיימים)
+                var allPaths = SelectedImagePaths.ToList();
+                allPaths.AddRange(openFileDialog.FileNames);
+
+                // מיון הרשימה לפי הלוגיקה המבוקשת
+                var sortedPaths = allPaths.OrderBy(path =>
                 {
-                    SelectedImagePaths.Add(filename);
+                    string fileName = Path.GetFileNameWithoutExtension(path).ToUpper();
+
+                    // חילוץ החלק של המספר/אות (למשל מ-"R11A" נוציא "11A")
+                    // הנחה: השם מתחיל ב-R או L ואחריו הקוד
+                    string code = fileName.Length > 1 ? fileName.Substring(1) : fileName;
+
+                    // מציאת האינדקס ברשימה המוגדרת מראש
+                    int index = CustomOrder.IndexOf(code);
+
+                    // אם הקוד לא נמצא ברשימה, הוא יופיע בסוף (אינדקס גבוה)
+                    return index == -1 ? int.MaxValue : index;
+                })
+                .ThenBy(path => path) // מיון משני לפי השם המלא למקרה של כפילויות
+                .ToList();
+
+             
+                SelectedImagePaths.Clear();
+                foreach (var path in sortedPaths)
+                {
+                    SelectedImagePaths.Add(path);
                 }
             }
         }
@@ -125,6 +150,12 @@ namespace MyUserApp.ViewModels
                    !string.IsNullOrEmpty(SelectedInspector) &&
                    SelectedImagePaths.Any();
         }
+        //the list for the start prosject
+        private static readonly List<string> CustomOrder = new List<string>
+        {
+            "7", "8", "9", "10", "11", "11A", "12", "12A", "13", "14", "15", "16",
+            "17H", "18H", "17", "18", "19", "20", "21H", "22H", "21", "22"
+        };
 
         /// <summary>
         /// Gathers all the selected data, copies images to a dedicated report folder,
@@ -136,7 +167,7 @@ namespace MyUserApp.ViewModels
             string reportImageFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ReportImages", Guid.NewGuid().ToString());
             Directory.CreateDirectory(reportImageFolder);
 
-            // Copy selected images to the new folder.
+            // Copy selected images to the new folder
             var newImagePaths = new List<string>();
             foreach (string originalPath in SelectedImagePaths)
             {

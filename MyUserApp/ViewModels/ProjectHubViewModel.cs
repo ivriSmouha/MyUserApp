@@ -7,6 +7,8 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media.Imaging; 
@@ -19,6 +21,7 @@ namespace MyUserApp.ViewModels
     /// </summary>
     public class ProjectHubViewModel : BaseViewModel 
     {
+       
         // A placeholder image URI used when no project image is available.
         private const string DefaultImagePath = "C:\\Users\\User\\Source\\Repos\\MyUserApp\\MyUserApp\\Assets\\1.PNG";
 
@@ -76,6 +79,17 @@ namespace MyUserApp.ViewModels
                 ProjectsView.Refresh();
             }
         }
+        //ליצירת תקיה חדשה במניו
+
+        public ICommand CreateNewFolderCommand { get; }
+
+
+        public ICommand SelectProjectCommand { get; }
+
+
+
+        public ICommand StartEditCommand { get; }
+        public ICommand EndEditCommand { get; }
 
         // Commands for UI actions.
         public ICommand OpenProjectCommand { get; }
@@ -132,10 +146,17 @@ namespace MyUserApp.ViewModels
             LogoutCommand = new RelayCommand(param => OnLogoutRequested?.Invoke());
             OpenProjectCommand = new RelayCommand(OpenSelectedProject, _ => SelectedProject != null);
             SwitchThemeCommand = new RelayCommand(_ => ThemeService.Instance.SwitchTheme());
+           
             DeleteProjectCommand = new RelayCommand(DeleteProject);
+             
+            SelectProjectCommand = new RelayCommand(obj => {
+                if (obj is ProjectDisplayViewModel project) SelectedProject = project;
+            });
 
+            
             UpdateImageDisplay();
         }
+
         private string ExtractAircraftName(string projectName)
         {
             if (string.IsNullOrEmpty(projectName)) return "General";
@@ -149,10 +170,39 @@ namespace MyUserApp.ViewModels
             // אם אין מקף, היא תיקח את המילה הראשונה
             return projectName.Split(' ')[0].Trim();
         }
+
         // מחלקה חדשה לייצוג תיקיית מטוס
+        /*
         public class AircraftFolder
         {
             public string AircraftName { get; set; }
+            public ObservableCollection<ProjectDisplayViewModel> Projects { get; set; } = new ObservableCollection<ProjectDisplayViewModel>();
+        }*/
+        public class AircraftFolder : BaseViewModel // הוספנו ירושה כדי שהמסך יתעדכן
+        {
+            private string _aircraftName;
+            private bool _isEditing;
+
+            public string AircraftName
+            {
+                get => _aircraftName;
+                set
+                {
+                    _aircraftName = value;
+                    OnPropertyChanged(); // מעדכן את המסך כשהשם משתנה
+                }
+            }
+
+            public bool IsEditing
+            {
+                get => _isEditing;
+                set
+                {
+                    _isEditing = value;
+                    OnPropertyChanged(); // מעדכן את המסך כשנכנסים/יוצאים ממצב עריכה
+                }
+            }
+
             public ObservableCollection<ProjectDisplayViewModel> Projects { get; set; } = new ObservableCollection<ProjectDisplayViewModel>();
         }
 
@@ -198,9 +248,42 @@ namespace MyUserApp.ViewModels
             if (result != MessageBoxResult.Yes)
                 return;
 
+            // 1. מחיקה מהמסד נתונים/שירות
             ReportService.Instance.DeleteReport(project.Report);
 
+            // 2. עדכון הטבלה המרכזית (זה מה שהיה לך)
             _recentProjects.Remove(project);
+
+            // 3. עדכון התיקיות בצד (זה החלק החסר)
+            // אנחנו מחפשים באיזו תיקייה הפרויקט הזה נמצא ומסירים אותו ממנה
+            var folderContainingProject = GroupedProjects.FirstOrDefault(f => f.Projects.Contains(project));
+            if (folderContainingProject != null)
+            {
+                folderContainingProject.Projects.Remove(project); 
+
+                // אופציונלי: אם התיקייה התרוקנה לגמרי, אולי תרצי למחוק גם את התיקייה עצמה
+                if (folderContainingProject.Projects.Count == 0)
+                {
+                    GroupedProjects.Remove(folderContainingProject);
+                }
+            }
+        }
+
+
+        private void CreateNewFolder(object obj)
+        {
+            // 1. יצירת אובייקט התיקייה החדש
+            var newFolder = new AircraftFolder
+            {
+                AircraftName = "New Aircraft", // שם ברירת מחדל
+                IsEditing = true,               // הפעלת מצב עריכה (זה יראה את ה-TextBox)
+                Projects = new ObservableCollection<ProjectDisplayViewModel>()
+            };
+
+            // 2. הוספה לרשימה שמוצגת ב-TreeView
+            GroupedProjects.Add(newFolder);
+
+            // טיפ: אם את רוצה שהתיקייה החדשה תיבחר אוטומטית, אפשר להוסיף לוגיקה כאן
         }
 
         /// <summary>
@@ -208,9 +291,13 @@ namespace MyUserApp.ViewModels
         /// </summary>
         private void OpenSelectedProject(object obj)
         {
-            if (SelectedProject != null)
+            // בודק אם קיבלנו פרויקט מה-TreeView (דרך הפרמטר obj)
+            // אם לא, לוקח את הפרויקט שנבחר ב-DataGrid (SelectedProject)
+            var projectToOpen = (obj as ProjectDisplayViewModel) ?? SelectedProject;
+
+            if (projectToOpen != null)
             {
-                OnOpenProjectRequested?.Invoke(SelectedProject.Report, SelectedProject.CurrentUserRole);
+                OnOpenProjectRequested?.Invoke(projectToOpen.Report, projectToOpen.CurrentUserRole);
             }
         }
 
@@ -239,7 +326,7 @@ namespace MyUserApp.ViewModels
                     {
                         var bitmap = new BitmapImage();
                         bitmap.BeginInit();
-                        bitmap.UriSource = new Uri(imagePath);
+                        bitmap.UriSource = new Uri(imagePath);  
                         bitmap.DecodePixelWidth = 300; // Load a smaller version for performance.
                         bitmap.CacheOption = BitmapCacheOption.OnLoad;
                         bitmap.EndInit();
