@@ -151,6 +151,7 @@ namespace MyUserApp.ViewModels
                    SelectedImagePaths.Any();
         }
         //the list for the start prosject
+        //and the numbers in eich ather
         private static readonly List<string> CustomOrder = new List<string>
         {
             "7", "8", "9", "10", "11", "11A", "12", "12A", "13", "14", "15", "16",
