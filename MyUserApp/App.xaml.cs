@@ -1,11 +1,6 @@
 ﻿// File: MyUserApp/App.xaml.cs
 
-using System.Configuration;
-using System.Data;
-using System.IO;
-using System;
 using System.Windows;
-using MyUserApp.Services;
 
 namespace MyUserApp
 {

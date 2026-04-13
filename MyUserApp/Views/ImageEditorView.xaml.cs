@@ -1,9 +1,8 @@
 ﻿using MyUserApp.ViewModels;
+using SkiaSharp;
 using SkiaSharp.Views.Desktop;
-using SkiaSharp.Views.WPF;
 using System.Windows;
 using System.Windows.Controls;
-using SkiaSharp;
 using System.Windows.Input;
 
 namespace MyUserApp.Views
@@ -106,7 +105,7 @@ namespace MyUserApp.Views
                 ViewModel.UpdateInteraction(p.X, p.Y);
             }
         }
-          
+
         /// <summary>
         /// Forwards the mouse up event to the ViewModel to finalize the interaction (e.g., finish drawing).
         /// </summary>

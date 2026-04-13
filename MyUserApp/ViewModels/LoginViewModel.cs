@@ -1,5 +1,4 @@
 ﻿using MyUserApp.Models;
-using System;
 using System.Windows.Input;
 
 namespace MyUserApp.ViewModels

@@ -1,17 +1,12 @@
 ﻿using MyUserApp.Models;
 using MyUserApp.Services;
-using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
-using System.Windows.Media.Imaging; 
+using System.Windows.Media.Imaging;
 
 namespace MyUserApp.ViewModels
 {
@@ -19,9 +14,9 @@ namespace MyUserApp.ViewModels
     /// ViewModel for the Project Hub view. This screen displays a list of projects
     /// assigned to the current user and allows them to open, filter, or create new projects.
     /// </summary>
-    public class ProjectHubViewModel : BaseViewModel 
+    public class ProjectHubViewModel : BaseViewModel
     {
-       
+
         // A placeholder image URI used when no project image is available.
         private const string DefaultImagePath = "C:\\Users\\User\\Source\\Repos\\MyUserApp\\MyUserApp\\Assets\\1.PNG";
 
@@ -146,14 +141,15 @@ namespace MyUserApp.ViewModels
             LogoutCommand = new RelayCommand(param => OnLogoutRequested?.Invoke());
             OpenProjectCommand = new RelayCommand(OpenSelectedProject, _ => SelectedProject != null);
             SwitchThemeCommand = new RelayCommand(_ => ThemeService.Instance.SwitchTheme());
-           
+
             DeleteProjectCommand = new RelayCommand(DeleteProject);
-             
-            SelectProjectCommand = new RelayCommand(obj => {
+
+            SelectProjectCommand = new RelayCommand(obj =>
+            {
                 if (obj is ProjectDisplayViewModel project) SelectedProject = project;
             });
 
-            
+
             UpdateImageDisplay();
         }
 
@@ -259,7 +255,7 @@ namespace MyUserApp.ViewModels
             var folderContainingProject = GroupedProjects.FirstOrDefault(f => f.Projects.Contains(project));
             if (folderContainingProject != null)
             {
-                folderContainingProject.Projects.Remove(project); 
+                folderContainingProject.Projects.Remove(project);
 
                 // אופציונלי: אם התיקייה התרוקנה לגמרי, אולי תרצי למחוק גם את התיקייה עצמה
                 if (folderContainingProject.Projects.Count == 0)
@@ -326,7 +322,7 @@ namespace MyUserApp.ViewModels
                     {
                         var bitmap = new BitmapImage();
                         bitmap.BeginInit();
-                        bitmap.UriSource = new Uri(imagePath);  
+                        bitmap.UriSource = new Uri(imagePath);
                         bitmap.DecodePixelWidth = 300; // Load a smaller version for performance.
                         bitmap.CacheOption = BitmapCacheOption.OnLoad;
                         bitmap.EndInit();

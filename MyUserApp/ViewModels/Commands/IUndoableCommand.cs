@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace MyUserApp.ViewModels.Commands
+﻿namespace MyUserApp.ViewModels.Commands
 {
     /// <summary>
     /// Defines the contract for a command that can be executed and un-executed.

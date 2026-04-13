@@ -1,5 +1,4 @@
 ﻿// File: MyUserApp/Converters/PathToBitmapImageConverter.cs
-using System;
 using System.Globalization;
 using System.IO;
 using System.Windows.Data;

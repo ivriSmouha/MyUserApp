@@ -1,13 +1,10 @@
-﻿using MyUserApp.Models;
+﻿using Microsoft.Win32;
+using MyUserApp.Models;
 using MyUserApp.Services;
-using Microsoft.Win32;
-using System;
 using System.Collections.ObjectModel;
 using System.IO;
-using System.Linq;
 using System.Windows;
 using System.Windows.Input;
-using System.Collections.Generic;
 
 namespace MyUserApp.ViewModels
 {
@@ -131,7 +128,7 @@ namespace MyUserApp.ViewModels
                 .ThenBy(path => path) // מיון משני לפי השם המלא למקרה של כפילויות
                 .ToList();
 
-             
+
                 SelectedImagePaths.Clear();
                 foreach (var path in sortedPaths)
                 {

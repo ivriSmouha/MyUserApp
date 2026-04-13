@@ -1,14 +1,12 @@
 ﻿// File: MyUserApp/Services/ReportService.cs
 using MyUserApp.Models;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text.Json;
 
 namespace MyUserApp.Services
 {
 
-   
+
 
     // Singleton service to manage all inspection report data.
     public class ReportService

@@ -1,5 +1,4 @@
-﻿using System;
-using MyUserApp.ViewModels; // Inherited for property change notifications.
+﻿using MyUserApp.ViewModels; // Inherited for property change notifications.
 
 namespace MyUserApp.Models
 {

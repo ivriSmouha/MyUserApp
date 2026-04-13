@@ -3,18 +3,14 @@ using MyUserApp.Models;
 using MyUserApp.Services;
 using MyUserApp.ViewModels.Commands;
 using SkiaSharp;
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input; // Added for Cursor support
 
 namespace MyUserApp.ViewModels
 {
-    
+
     /// <summary> 
     /// ViewModel for the main image editing screen. It manages the state and logic for
     /// viewing images, drawing annotations, adjusting image properties, and saving reports.
@@ -280,8 +276,8 @@ namespace MyUserApp.ViewModels
 
         /// <summary>
         /// Loads the currently selected image and its associated annotations into the editor.
-         private async Task LoadImageForEditingAsync()
-         { 
+        private async Task LoadImageForEditingAsync()
+        {
             _currentBitmap?.Dispose();
             _currentBitmap = null;
             if (string.IsNullOrEmpty(SelectedImage) || !File.Exists(SelectedImage))
@@ -306,11 +302,11 @@ namespace MyUserApp.ViewModels
 
             SelectedAnnotation = null;
             ClearHistory();
-            ResetView(null);    
+            ResetView(null);
             OnPropertyChanged(nameof(BrightnessValue));
             OnPropertyChanged(nameof(ContrastValue));
             OnPropertyChanged(nameof(CurrentAnnotations));
-         }
+        }
 
         /// <summary>
         /// Saves all changes to the report model and exports the annotated images to a folder.
@@ -440,7 +436,7 @@ namespace MyUserApp.ViewModels
                 return true;
             }
             return result == MessageBoxResult.No;
-        } 
+        }
         #endregion
 
         #region User Interaction and Drawing
@@ -678,41 +674,65 @@ namespace MyUserApp.ViewModels
             );
         }
 
+        private static readonly List<string> CustomOrder = new List<string>
+        {
+            "7", "8", "9", "10", "11", "11A", "12", "12A", "13", "14", "15", "16",
+            "17H", "18H", "17", "18", "19", "20", "21H", "22H", "21", "22"
+        };
+
+
         /// <summary>
         /// Opens a file dialog to add new images to the report.
         /// </summary>
         private void AddImages(object obj)
         {
-            DeleteExistingExportFolder();
-            SetDirty();
-            var openFileDialog = new OpenFileDialog { Multiselect = true, Filter = "Image Files|*.jpg;*.jpeg;*.png;*.gif;*.bmp", Title = "Select Images to Add" };
+            var openFileDialog = new OpenFileDialog
+            {
+                Multiselect = true,
+                Filter = "Image Files|*.jpg;*.jpeg;*.png;*.gif;*.bmp"
+            };
+
             if (openFileDialog.ShowDialog() == true)
             {
-                string reportImageFolder = GetOrCreateReportImageFolder();
-                var newlyAddedPaths = new List<string>();
-                foreach (string originalPath in openFileDialog.FileNames)
+                // 1. איסוף כל הנתיבים (הקיימים והחדשים שנבחרו)
+                var allPaths = ImageThumbnails.ToList();
+                allPaths.AddRange(openFileDialog.FileNames);
+
+                // 2. ביצוע המיון לפי הלוגיקה שלך
+                var sortedPaths = allPaths.Distinct().OrderBy(path =>
                 {
-                    string destinationPath = Path.Combine(reportImageFolder, Path.GetFileName(originalPath));
-                    try
-                    {
-                        File.Copy(originalPath, destinationPath, true);
-                        if (!_report.ImagePaths.Contains(destinationPath))
-                        {
-                            _report.ImagePaths.Add(destinationPath);
-                            ImageThumbnails.Add(destinationPath);
-                            newlyAddedPaths.Add(destinationPath);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"Error copying file {Path.GetFileName(originalPath)}: {ex.Message}", "File Copy Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
-                }
-                if (newlyAddedPaths.Any())
+                    string fileName = Path.GetFileNameWithoutExtension(path).ToUpper();
+
+                    // חילוץ הקוד (החלק שאחרי ה-L או ה-R)
+                    // אם השם הוא "R11A", הקוד יהיה "11A"
+                    string code = fileName.Length > 1 ? fileName.Substring(1) : fileName;
+
+                    // חיפוש האינדקס ברשימה המוגדרת
+                    int index = CustomOrder.IndexOf(code);
+
+                    // אם לא נמצא (index == -1), נחזיר ערך גבוה מאוד כדי שיעבור לסוף
+                    return index == -1 ? int.MaxValue : index;
+                })
+                .ThenBy(path => path) // מיון פנימי אלפביתי למקרים של שמות לא מוכרים
+                .ToList();
+
+                // 3. עדכון ה-ObservableCollection והמודל של הדו"ח
+                ImageThumbnails.Clear();
+                _report.ImagePaths.Clear();
+
+                foreach (var path in sortedPaths)
                 {
-                    SaveAndExportFullReportAsync();
-                    SelectedImage = newlyAddedPaths.First();
+                    ImageThumbnails.Add(path);
+                    _report.ImagePaths.Add(path);
                 }
+
+                // אם לא נבחרה תמונה עדיין, נבחר את הראשונה ברשימה החדשה
+                if (string.IsNullOrEmpty(SelectedImage) && ImageThumbnails.Any())
+                {
+                    SelectedImage = ImageThumbnails.First();
+                }
+
+                SetDirty(); // סימון שיש שינויים שלא נשמרו
             }
         }
 
@@ -965,7 +985,7 @@ namespace MyUserApp.ViewModels
                 if (dist <= relativeHitRadius) return annotation;
             }
             return null;
-        } 
+        }
 
 
         /// <summary>
@@ -983,7 +1003,7 @@ namespace MyUserApp.ViewModels
         {
             if (annotation == null) return false;
             if (IsDualRoleUser)
-            {   
+            {
                 return annotation.Author == AuthorType.Inspector || annotation.Author == AuthorType.Verifier;
             }
             return annotation.Author == _currentUserRole;

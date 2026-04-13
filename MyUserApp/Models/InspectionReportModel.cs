@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-
-namespace MyUserApp.Models
+﻿namespace MyUserApp.Models
 {
     /// <summary>
     /// Represents the complete data model for a single inspection report.

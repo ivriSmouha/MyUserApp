@@ -1,5 +1,4 @@
-﻿using System;
-using System.Windows.Input;
+﻿using System.Windows.Input;
 
 namespace MyUserApp.ViewModels
 {
@@ -44,7 +43,7 @@ namespace MyUserApp.ViewModels
         /// <param name="parameter">Data used by the command. Can be null.</param>
         /// <returns>true if this command can be executed; otherwise, false.</returns>
         public bool CanExecute(object parameter)
-        {  
+        {
             return _canExecute == null || _canExecute(parameter);
         }
 

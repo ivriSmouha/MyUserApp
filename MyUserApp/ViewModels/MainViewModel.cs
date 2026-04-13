@@ -1,8 +1,4 @@
 ﻿using MyUserApp.Models;
-using MyUserApp.Services;
-using System;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace MyUserApp.ViewModels
 {

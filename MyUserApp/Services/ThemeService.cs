@@ -1,6 +1,4 @@
 ﻿// File: MyUserApp/Services/ThemeService.cs
-using System;
-using System.Linq;
 using System.Windows;
 
 namespace MyUserApp.Services

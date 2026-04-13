@@ -1,5 +1,4 @@
 ﻿using MyUserApp.Models;
-using System;
 
 namespace MyUserApp.ViewModels
 {
