@@ -125,10 +125,10 @@
 
                         <!-- The ListView for the image thumbnails. -->
                         <ListView ItemsSource="{Binding ImageThumbnails}" 
-          SelectedItem="{Binding SelectedImage, Mode=TwoWay}" 
-          Background="Transparent" 
-          BorderThickness="0" 
-          Margin="0,5,0,0">
+                              SelectedItem="{Binding SelectedImage, Mode=TwoWay}"
+                                  Background="Transparent" 
+                               BorderThickness="0" 
+                               Margin="0,5,0,0">
 
                             <ListView.Template>
                                 <ControlTemplate>
@@ -164,12 +164,22 @@
 
                             <ListView.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid Height="120">
-                                        <Image Source="{Binding Converter={StaticResource PathToBitmapImageConverter}}" Stretch="UniformToFill"/>
-                                        <Border Background="#A0000000">
-                                            <TextBlock Text="{Binding Converter={StaticResource FullPathToFileNameConverter}}" Foreground="White" 
-                               VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="5" TextTrimming="CharacterEllipsis" ToolTip="{Binding}"/>
+                                    <Grid Height="150">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <Image Grid.Row="0" Source="{Binding FilePath, Converter={StaticResource PathToBitmapImageConverter}}" Stretch="UniformToFill"/>
+
+                                        <Border Grid.Row="0" Background="#A0000000" VerticalAlignment="Bottom">
+                                            <TextBlock Text="{Binding FilePath, Converter={StaticResource FullPathToFileNameConverter}}" Foreground="White" 
+                               HorizontalAlignment="Center" Margin="5" TextTrimming="CharacterEllipsis" ToolTip="{Binding FilePath}"/>
                                         </Border>
+
+                                        <Button Grid.Row="1" Content="{Binding Status}" Command="{Binding ToggleStatusCommand}" 
+                        Height="30" FontWeight="Bold" Background="{DynamicResource SecondaryBackgroundBrush}" 
+                        ToolTip="לחץ כדי לשנות סטטוס (שמיש/גוז)"/>
                                     </Grid>
                                 </DataTemplate>
                             </ListView.ItemTemplate>

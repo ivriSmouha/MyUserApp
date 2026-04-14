@@ -60,7 +60,7 @@ namespace MyUserApp.ViewModels
 
         #region Public Properties
         public string ProjectName => _report.ProjectName;
-        public ObservableCollection<string> ImageThumbnails { get; }
+        public ObservableCollection<ImageItemModel> ImageThumbnails { get; } = new ObservableCollection<ImageItemModel>();
         public ObservableCollection<AnnotationModel> CurrentAnnotations { get; private set; }
 
         /// <summary>
@@ -81,9 +81,21 @@ namespace MyUserApp.ViewModels
         /// <summary>
         /// The currently selected image path for editing.
         /// </summary>
-        private string _selectedImage;
-        public string SelectedImage { get => _selectedImage; set { if (_selectedImage == value) return; _selectedImage = value; OnPropertyChanged(); ((RelayCommand)DeleteImageCommand).RaiseCanExecuteChanged(); _ = LoadImageForEditingAsync(); } }
+        private ImageItemModel _selectedImage; // שינוי מ-string ל-ImageItemModel
+        public ImageItemModel SelectedImage
+        {
+            get => _selectedImage;
+            set
+            {
+                if (_selectedImage == value) return;
+                _selectedImage = value;
 
+                OnPropertyChanged();
+                // שימי לב: כל שאר הפונקציות שקוראות כאן (כמו LoadImageForEditingAsync) 
+                // יצטרכו עכשיו להשתמש ב-_selectedImage.FilePath במקום ב-_selectedImage עצמו
+                _ = LoadImageForEditingAsync();
+            }
+        }
         /// <summary>
         /// The currently selected annotation.
         /// </summary>
@@ -101,15 +113,15 @@ namespace MyUserApp.ViewModels
         {
             get
             {
-                if (SelectedImage == null || !_sessionAdjustments.ContainsKey(SelectedImage)) return 0f;
-                return _sessionAdjustments[SelectedImage].Brightness;
+                if (SelectedImage == null || !_sessionAdjustments.ContainsKey(SelectedImage.FilePath)) return 0f;
+                return _sessionAdjustments[SelectedImage.FilePath].Brightness;
             }
             set
             {
                 if (SelectedImage == null) return;
-                if (!_sessionAdjustments.ContainsKey(SelectedImage))
-                    _sessionAdjustments[SelectedImage] = new ImageAdjustmentModel();
-                _sessionAdjustments[SelectedImage].Brightness = value;
+                if (!_sessionAdjustments.ContainsKey(SelectedImage.FilePath))
+                    _sessionAdjustments[SelectedImage.FilePath] = new ImageAdjustmentModel();
+                _sessionAdjustments[SelectedImage.FilePath].Brightness = value;
                 OnPropertyChanged();
                 InvalidateCanvas();
                 SetDirty();
@@ -120,15 +132,15 @@ namespace MyUserApp.ViewModels
         {
             get
             {
-                if (SelectedImage == null || !_sessionAdjustments.ContainsKey(SelectedImage)) return 1f;
-                return _sessionAdjustments[SelectedImage].Contrast;
+                if (SelectedImage == null || !_sessionAdjustments.ContainsKey(SelectedImage.FilePath)) return 1f;
+                return _sessionAdjustments[SelectedImage.FilePath].Contrast;
             }
             set
             {
                 if (SelectedImage == null) return;
-                if (!_sessionAdjustments.ContainsKey(SelectedImage))
-                    _sessionAdjustments[SelectedImage] = new ImageAdjustmentModel();
-                _sessionAdjustments[SelectedImage].Contrast = value;
+                if (!_sessionAdjustments.ContainsKey(SelectedImage.FilePath))
+                    _sessionAdjustments[SelectedImage.FilePath] = new ImageAdjustmentModel();
+                _sessionAdjustments[SelectedImage.FilePath].Contrast = value;
                 OnPropertyChanged();
                 InvalidateCanvas();
                 SetDirty();
@@ -216,7 +228,11 @@ namespace MyUserApp.ViewModels
                              report.InspectorName == user.Username &&
                              report.VerifierName == user.Username;
 
-            ImageThumbnails = new ObservableCollection<string>(report.ImagePaths);
+            // מייצר אובייקט עם כפתור לכל תמונה שכבר קיימת בפרויקט
+            foreach (var path in report.ImagePaths)
+            {
+                ImageThumbnails.Add(new ImageItemModel(path, SetDirty));
+            }
 
             if (report.AnnotationsByImage != null)
             {
@@ -245,8 +261,7 @@ namespace MyUserApp.ViewModels
             RotateLeftCommand = new RelayCommand(_ => Rotate(-90));
             RotateRightCommand = new RelayCommand(_ => Rotate(90));
             AddImagesCommand = new RelayCommand(AddImages);
-            DeleteImageCommand = new RelayCommand(async _ => await DeleteSelectedImageAsync(), _ => !string.IsNullOrEmpty(SelectedImage));
-            ResetBrightnessCommand = new RelayCommand(_ => BrightnessValue = 0f, _ => SelectedImage != null);
+            DeleteImageCommand = new RelayCommand(async _ => await DeleteSelectedImageAsync(), _ => SelectedImage != null); ResetBrightnessCommand = new RelayCommand(_ => BrightnessValue = 0f, _ => SelectedImage != null);
             ResetContrastCommand = new RelayCommand(_ => ContrastValue = 1f, _ => SelectedImage != null);
             SwitchRoleCommand = new RelayCommand(SwitchActiveRole, _ => IsDualRoleUser);
             FinishEditingCommand = new RelayCommand(async _ => await HandleFinishEditingAsync());
@@ -280,7 +295,7 @@ namespace MyUserApp.ViewModels
         {
             _currentBitmap?.Dispose();
             _currentBitmap = null;
-            if (string.IsNullOrEmpty(SelectedImage) || !File.Exists(SelectedImage))
+            if (SelectedImage == null || !File.Exists(SelectedImage.FilePath))
             {
                 CurrentAnnotations = new ObservableCollection<AnnotationModel>();
                 OnPropertyChanged(nameof(CurrentAnnotations));
@@ -288,15 +303,15 @@ namespace MyUserApp.ViewModels
                 return;
             }
 
-            using (var tempStream = new MemoryStream(await File.ReadAllBytesAsync(SelectedImage)))
+            using (var tempStream = new MemoryStream(await File.ReadAllBytesAsync(SelectedImage.FilePath)))
             {
                 _currentBitmap = await Task.Run(() => SKBitmap.Decode(tempStream));
             }
 
-            if (!_sessionAnnotations.TryGetValue(SelectedImage, out var existingAnnotations))
+            if (!_sessionAnnotations.TryGetValue(SelectedImage.FilePath, out var existingAnnotations))
             {
                 existingAnnotations = new ObservableCollection<AnnotationModel>();
-                _sessionAnnotations[SelectedImage] = existingAnnotations;
+                _sessionAnnotations[SelectedImage.FilePath] = existingAnnotations;
             }
             CurrentAnnotations = existingAnnotations;
 
@@ -696,12 +711,16 @@ namespace MyUserApp.ViewModels
             {
                 // 1. איסוף כל הנתיבים (הקיימים והחדשים שנבחרו)
                 var allPaths = ImageThumbnails.ToList();
-                allPaths.AddRange(openFileDialog.FileNames);
+                // אנחנו עוברים על כל הקבצים שנבחרו והופכים כל אחד מהם למודל החדש שלנו
+                var newItems = openFileDialog.FileNames.Select(path => new ImageItemModel(path, SetDirty));
+
+                // עכשיו מוסיפים את האובייקטים החדשים לרשימה
+                allPaths.AddRange(newItems);
 
                 // 2. ביצוע המיון לפי הלוגיקה שלך
                 var sortedPaths = allPaths.Distinct().OrderBy(path =>
                 {
-                    string fileName = Path.GetFileNameWithoutExtension(path).ToUpper();
+                    string fileName = Path.GetFileNameWithoutExtension(path.FilePath).ToUpper();
 
                     // חילוץ הקוד (החלק שאחרי ה-L או ה-R)
                     // אם השם הוא "R11A", הקוד יהיה "11A"
@@ -720,14 +739,17 @@ namespace MyUserApp.ViewModels
                 ImageThumbnails.Clear();
                 _report.ImagePaths.Clear();
 
-                foreach (var path in sortedPaths)
+                foreach (var item in sortedPaths)
                 {
-                    ImageThumbnails.Add(path);
-                    _report.ImagePaths.Add(path);
+                    // 1. הוספה לרשימת התצוגה (היא כבר מכילה אובייקטים, אז פשוט מוסיפים)
+                    ImageThumbnails.Add(item);
+
+                    // 2. הוספת נתיב הטקסט בלבד לרשימת הנתיבים של הדו"ח
+                    _report.ImagePaths.Add(item.FilePath);
                 }
 
                 // אם לא נבחרה תמונה עדיין, נבחר את הראשונה ברשימה החדשה
-                if (string.IsNullOrEmpty(SelectedImage) && ImageThumbnails.Any())
+                if (SelectedImage == null && ImageThumbnails.Any())
                 {
                     SelectedImage = ImageThumbnails.First();
                 }
@@ -741,7 +763,8 @@ namespace MyUserApp.ViewModels
         /// </summary>
         private async Task DeleteSelectedImageAsync()
         {
-            string imageToDelete = SelectedImage;
+            // אנחנו ניגשים למאפיין FilePath של האובייקט הנבחר כדי לקבל את הנתיב כטקסט
+            string imageToDelete = SelectedImage?.FilePath;
             if (string.IsNullOrEmpty(imageToDelete)) return;
             var result = MessageBox.Show("Are you sure you want to permanently delete this image and all its annotations?", "Confirm Deletion", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (result != MessageBoxResult.Yes) return;
@@ -749,15 +772,28 @@ namespace MyUserApp.ViewModels
             DeleteExistingExportFolder();
             SetDirty();
 
-            int deletedImageIndex = ImageThumbnails.IndexOf(imageToDelete);
-            string nextSelection = (ImageThumbnails.Count > 1) ? (deletedImageIndex == 0 ? ImageThumbnails[1] : ImageThumbnails[deletedImageIndex - 1]) : null;
+            // מחפשים את האובייקט ברשימה שהנתיב שלו תואם לנתיב שרוצים למחוק
+            var itemToRemove = ImageThumbnails.FirstOrDefault(x => x.FilePath == imageToDelete);
+
+            // אם מצאנו, מקבלים את האינדקס שלו
+            int deletedImageIndex = -1;
+            if (itemToRemove != null)
+            {
+                deletedImageIndex = ImageThumbnails.IndexOf(itemToRemove);
+            }
+            string nextSelection = (ImageThumbnails.Count > 1)
+                ? (deletedImageIndex == 0 ? ImageThumbnails[1].FilePath : ImageThumbnails[deletedImageIndex - 1].FilePath)
+                : null;
 
             SelectedImage = null;
             await Task.Delay(100);
             _report.ImagePaths.Remove(imageToDelete);
             _sessionAnnotations.Remove(imageToDelete);
             _sessionAdjustments.Remove(imageToDelete);
-            ImageThumbnails.Remove(imageToDelete);
+            if (itemToRemove != null)
+            {
+                ImageThumbnails.Remove(itemToRemove);
+            }
 
             try
             {
@@ -769,7 +805,8 @@ namespace MyUserApp.ViewModels
             }
 
             await SaveAndExportFullReportAsync();
-            SelectedImage = nextSelection;
+            // אנחנו מחפשים ברשימה את האובייקט שהנתיב שלו שווה לנתיב שרצית לבחור
+            SelectedImage = ImageThumbnails.FirstOrDefault(x => x.FilePath == nextSelection);
         }
 
         /// <summary>
@@ -858,14 +895,14 @@ namespace MyUserApp.ViewModels
         /// </summary>
         private async Task RunAiAnalysis()
         {
-            if (string.IsNullOrEmpty(SelectedImage))
+            if (SelectedImage == null)
             {
                 MessageBox.Show("Please select an image before running AI analysis.", "No Image Selected");
                 return;
             }
             SetDirty();
             var mockService = new MockAnnotationService();
-            var aiResults = await mockService.GetAnnotationsAsync(SelectedImage);
+            var aiResults = await mockService.GetAnnotationsAsync(SelectedImage.FilePath);
             if (aiResults.Any())
             {
                 foreach (var annotation in aiResults)
@@ -1019,5 +1056,31 @@ namespace MyUserApp.ViewModels
             _currentBitmap?.Dispose();
         }
         #endregion
+    }
+
+    // תוסיפי את זה בסוף הקובץ
+    public class ImageItemModel : BaseViewModel
+    {
+        public string FilePath { get; set; }
+
+        private string _status = "שמיש";
+        public string Status
+        {
+            get => _status;
+            set { _status = value; OnPropertyChanged(); }
+        }
+
+        public ICommand ToggleStatusCommand { get; }
+
+        // הבנאי מקבל את הנתיב, וגם פונקציה שתסמן שיש שינויים בפרויקט כשלוחצים על הכפתור
+        public ImageItemModel(string path, Action setDirtyAction)
+        {
+            FilePath = path;
+            ToggleStatusCommand = new RelayCommand(_ =>
+            {
+                Status = Status == "שמיש" ? "גו\"ז" : "שמיש";
+                setDirtyAction?.Invoke(); // מעדכן את הפרויקט הראשי שצריך לשמור
+            });
+        }
     }
 }
