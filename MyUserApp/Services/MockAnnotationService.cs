@@ -1,7 +1,7 @@
 ﻿using MyUserApp.Models;
 
 namespace MyUserApp.Services
-{
+{ 
     /// <summary>
     /// A mock implementation of the IAnnotationService.
     /// This class simulates a call to a real AI service by returning a hard-coded
@@ -33,7 +33,7 @@ namespace MyUserApp.Services
                     CenterY = 0.8,
                     Radius = 0.08
                 }
-            };
+            }; 
 
             // Randomly decide if the AI finds anything, to make it more realistic.
             if (new Random().Next(0, 2) > 0)

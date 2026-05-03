@@ -177,9 +177,29 @@
                                HorizontalAlignment="Center" Margin="5" TextTrimming="CharacterEllipsis" ToolTip="{Binding FilePath}"/>
                                         </Border>
 
-                                        <Button Grid.Row="1" Content="{Binding Status}" Command="{Binding ToggleStatusCommand}" 
-                        Height="30" FontWeight="Bold" Background="{DynamicResource SecondaryBackgroundBrush}" 
-                        ToolTip="לחץ כדי לשנות סטטוס (שמיש/גוז)"/>
+                                        <Button Grid.Row="1" 
+        Content="{Binding Status}" 
+        Command="{Binding ToggleStatusCommand}" 
+        Height="30" 
+        FontWeight="Bold" 
+        ToolTip="לחץ כדי לשנות סטטוס (שמיש/גוז)">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                    <Setter Property="Background" Value="{DynamicResource SecondaryBackgroundBrush}"/>
+                                                    <Setter Property="Foreground" Value="White"/>
+
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Status}" Value="גוז">
+                                                            <Setter Property="Background" Value="#E74C3C"/>
+                                                        </DataTrigger>
+
+                                                        <DataTrigger Binding="{Binding Status}" Value="שמיש">
+                                                            <Setter Property="Background" Value="#2ECC71"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
                                     </Grid>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
@@ -194,7 +214,16 @@
         <!-- Main Content area remains unchanged for now. -->
         <Grid Grid.Column="2">
             <!-- The rest of the file remains the same. -->
-            <skia:SKElement x:Name="SkiaElement" PaintSurface="CanvasView_PaintSurface" MouseWheel="CanvasView_MouseWheel" MouseLeftButtonDown="CanvasView_MouseLeftButtonDown" MouseMove="CanvasView_MouseMove" MouseLeftButtonUp="CanvasView_MouseLeftButtonUp" KeyDown="SkiaElement_KeyDown" Focusable="True"/>
+            <skia:SKElement x:Name="SkiaElement" 
+                PaintSurface="CanvasView_PaintSurface" 
+                MouseWheel="CanvasView_MouseWheel" 
+                MouseLeftButtonDown="CanvasView_MouseLeftButtonDown" 
+                MouseRightButtonDown="CanvasView_MouseRightButtonDown" 
+                MouseMove="CanvasView_MouseMove" 
+                MouseLeftButtonUp="CanvasView_MouseUp" 
+                MouseRightButtonUp="CanvasView_MouseUp" 
+                KeyDown="SkiaElement_KeyDown" 
+                Focusable="True"/>
             <StackPanel Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="10">
                 <Border Background="{DynamicResource SecondaryBackgroundBrush}" CornerRadius="3" Padding="5" Margin="0,0,10,0"
                         Visibility="{Binding IsDualRoleUser, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -227,6 +256,12 @@
                 </Border>
             </StackPanel>
             <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="10">
+
+                <Button Content="דוח מסקנות" 
+            Command="{Binding GenerateExcelReportCommand}" 
+            Style="{DynamicResource SecondaryButtonStyle}" 
+            Margin="0,0,10,0"/>
+
                 <Button Content="Run AI Analysis" Command="{Binding RunAiAnalysisCommand}" Style="{DynamicResource SecondaryButtonStyle}"/>
                 <Button Command="{Binding SaveOnlyCommand}" Margin="10,0,0,0" Style="{StaticResource SaveButtonStyle}" ToolTip="Save all changes and export the full report."/>
                 <Button Content="Save and Finish" Command="{Binding FinishEditingCommand}" Margin="10,0,0,0" Style="{StaticResource PrimaryActionButtonStyle}" ToolTip="Save all changes, export, and return to the project hub."/>

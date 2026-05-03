@@ -79,19 +79,24 @@ namespace MyUserApp.Views
         private void CanvasView_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (ViewModel == null) return;
-            // Set focus to the canvas to enable keyboard shortcuts.
             SkiaElement.Focus();
             SkiaElement.CaptureMouse();
             var p = GetCanvasPoint(e);
 
-            if (Keyboard.IsKeyDown(Key.Space))
-            {
-                ViewModel.StartPan(p.X, p.Y);
-            }
-            else
-            {
-                ViewModel.StartDrawing(p.X, p.Y);
-            }
+            // קריאה לפונקציה החדשה ב-ViewModel - מצב ציור (false כי זה לא קליק ימני)
+            ViewModel.StartInteraction(p.X, p.Y, isRightClick: false);
+        }
+
+        // הוספת פונקציה חדשה לקליק ימני (Panning)
+        private void CanvasView_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (ViewModel == null) return;
+            SkiaElement.Focus();
+            SkiaElement.CaptureMouse();
+            var p = GetCanvasPoint(e);
+
+            // קריאה לפונקציה החדשה ב-ViewModel - מצב גרירה (true)
+            ViewModel.StartInteraction(p.X, p.Y, isRightClick: true);
         }
 
         /// <summary>
@@ -99,7 +104,11 @@ namespace MyUserApp.Views
         /// </summary>
         private void CanvasView_MouseMove(object sender, MouseEventArgs e)
         {
-            if (e.LeftButton == MouseButtonState.Pressed && ViewModel != null)
+            // בודק אם לפחות אחד מהכפתורים (שמאלי או ימני) לחוץ
+            bool isAnyButtonPressed = e.LeftButton == MouseButtonState.Pressed ||
+                                       e.RightButton == MouseButtonState.Pressed;
+
+            if (isAnyButtonPressed && ViewModel != null)
             {
                 var p = GetCanvasPoint(e);
                 ViewModel.UpdateInteraction(p.X, p.Y);
@@ -109,10 +118,13 @@ namespace MyUserApp.Views
         /// <summary>
         /// Forwards the mouse up event to the ViewModel to finalize the interaction (e.g., finish drawing).
         /// </summary>
-        private void CanvasView_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        private void CanvasView_MouseUp(object sender, MouseButtonEventArgs e)
         {
             if (ViewModel == null) return;
+
+            // משחרר את תפיסת העכבר לא משנה איזה כפתור שוחרר
             SkiaElement.ReleaseMouseCapture();
+
             var p = GetCanvasPoint(e);
             ViewModel.EndInteraction(p.X, p.Y);
         }

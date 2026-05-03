@@ -184,7 +184,7 @@ namespace MyUserApp.ViewModels
             // Assemble the new report model.
             var newReport = new InspectionReportModel
             {
-                ProjectName = $"{SelectedAircraftType} - {SelectedTailNumber} ({SelectedAircraftSide})",
+                ProjectName = $"{SelectedAircraftType} * {SelectedTailNumber} ({SelectedAircraftSide})",
                 AircraftType = SelectedAircraftType,
                 TailNumber = SelectedTailNumber,
                 AircraftSide = SelectedAircraftSide,

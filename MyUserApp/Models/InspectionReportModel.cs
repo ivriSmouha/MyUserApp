@@ -6,6 +6,7 @@
     /// </summary>
     public class InspectionReportModel
     {
+        public Dictionary<string, string> ImageStatuses { get; set; } = new Dictionary<string, string>();
         /// <summary>
         /// A unique identifier for the report.
         /// </summary>

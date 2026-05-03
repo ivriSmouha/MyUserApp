@@ -46,6 +46,13 @@
     <None Remove="Cursors\text.cur" />
     <None Remove="Cursors\unavailiable.cur" />
     <None Remove="Cursors\vert.cur" />
+    <None Remove="Templates\מDEX_EXCEL_דוח גוז.xlsx" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Templates\מDEX_EXCEL_דוח גוז.xlsx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>

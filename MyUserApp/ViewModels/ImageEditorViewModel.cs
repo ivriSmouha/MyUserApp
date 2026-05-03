@@ -5,7 +5,11 @@ using MyUserApp.ViewModels.Commands;
 using SkiaSharp;
 using System.Collections.ObjectModel;
 using System.IO;
+using ClosedXML.Excel; // לעריכת האקסל
+using Spire.Xls;       // להמרה ל-PDF
+using System.Diagnostics; // לפתיחת הקובץ במחשב
 using System.Windows;
+
 using System.Windows.Input; // Added for Cursor support
 
 namespace MyUserApp.ViewModels
@@ -128,6 +132,7 @@ namespace MyUserApp.ViewModels
             }
         }
 
+
         public float ContrastValue
         {
             get
@@ -195,6 +200,8 @@ namespace MyUserApp.ViewModels
         #endregion
 
         #region Commands
+
+        public ICommand GenerateExcelReportCommand { get; }
         public ICommand UndoCommand { get; }
         public ICommand RedoCommand { get; }
         public ICommand DeleteAnnotationCommand { get; }
@@ -228,10 +235,18 @@ namespace MyUserApp.ViewModels
                              report.InspectorName == user.Username &&
                              report.VerifierName == user.Username;
 
-            // מייצר אובייקט עם כפתור לכל תמונה שכבר קיימת בפרויקט
+            // מייצר אובייקט עם כפתור לכל תמונה שכבר קיימת בפרויקט ומטעין סטטוס אם קיים
             foreach (var path in report.ImagePaths)
             {
-                ImageThumbnails.Add(new ImageItemModel(path, SetDirty));
+                var item = new ImageItemModel(path, SetDirty);
+
+                // בדיקה: האם יש סטטוס שמור לתמונה הזו במודל של הדוח?
+                if (report.ImageStatuses != null && report.ImageStatuses.ContainsKey(path))
+                {
+                    item.Status = report.ImageStatuses[path];
+                }
+
+                ImageThumbnails.Add(item);
             }
 
             if (report.AnnotationsByImage != null)
@@ -268,6 +283,7 @@ namespace MyUserApp.ViewModels
             SaveOnlyCommand = new RelayCommand(async _ => await SaveAndExportFullReportAsync());
             SaveCommand = new RelayCommand(async _ => await SaveAndExportFullReportAsync());
 
+            GenerateExcelReportCommand = new RelayCommand(async _ => await GenerateExcelReportAsync());
             // ADDED: Call the new method to initialize cursors.
             InitializeCursors();
         }
@@ -328,6 +344,7 @@ namespace MyUserApp.ViewModels
         /// </summary>
         public async Task SaveAndExportFullReportAsync()
         {
+            
             _report.AnnotationsByImage.Clear();
             foreach (var entry in _sessionAnnotations)
             {
@@ -336,11 +353,24 @@ namespace MyUserApp.ViewModels
                     _report.AnnotationsByImage[entry.Key] = entry.Value.ToList();
                 }
             }
+
+            
+            _report.ImageStatuses.Clear();
+            foreach (var thumb in ImageThumbnails)
+            {
+                // אנחנו מוודאים שהנתיב קיים במילון ומעדכנים את הסטטוס שנבחר ב-UI
+                _report.ImageStatuses[thumb.FilePath] = thumb.Status;
+            }
+            
+
+            
             _report.AdjustmentsByImage = new Dictionary<string, ImageAdjustmentModel>(_sessionAdjustments);
             _report.LastModifiedDate = DateTime.Now;
 
+            // 3. שמירה סופית של המודל המעודכן דרך הסרוויס
             ReportService.Instance.UpdateReport(_report);
 
+            // בדיקה אם יש תמונות לייצוא
             if (!_report.ImagePaths.Any())
             {
                 MessageBox.Show("Report data saved. No images to export.", "Save Complete");
@@ -348,6 +378,7 @@ namespace MyUserApp.ViewModels
                 return;
             }
 
+            // הכנת תיקיית הייצוא
             string sanitizedProjectName = string.Join("_", _report.ProjectName.Split(Path.GetInvalidFileNameChars()));
             string outputDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Exported Reports", sanitizedProjectName);
 
@@ -362,6 +393,7 @@ namespace MyUserApp.ViewModels
                 return;
             }
 
+            // ייצוא התמונות עם הציורים (Annotations) וההתאמות (Adjustments)
             await Task.Run(() =>
             {
                 foreach (var imagePath in _report.ImagePaths)
@@ -375,11 +407,13 @@ namespace MyUserApp.ViewModels
                     {
                         var canvas = exportSurface.Canvas;
 
+                        
                         using (var bitmapPaint = new SKPaint { ColorFilter = CreateColorFilter(adjustments?.Brightness ?? 0f, adjustments?.Contrast ?? 1f) })
                         {
                             canvas.DrawBitmap(originalBitmap, 0, 0, bitmapPaint);
                         }
 
+                        // ציור האנוטציות על התמונה המיוצאת
                         if (_sessionAnnotations.TryGetValue(imagePath, out var annotationsForThisImage))
                         {
                             using (var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 4 })
@@ -398,6 +432,7 @@ namespace MyUserApp.ViewModels
                             }
                         }
 
+                       
                         string outputFilePath = Path.Combine(outputDirectory, Path.GetFileName(imagePath));
                         using (var image = exportSurface.Snapshot())
                         using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 95))
@@ -411,6 +446,125 @@ namespace MyUserApp.ViewModels
 
             MessageBox.Show($"Report saved and all {_report.ImagePaths.Count} images exported to:\n{outputDirectory}", "Export Complete");
             IsDirty = false;
+        }
+
+        // מילון המיקומים )
+        private readonly Dictionary<string, string> _imageCellMapping = new Dictionary<string, string>
+        {
+        
+        { "L7", "I13" },
+        { "L8", "I14" },
+        { "L9", "I15" },
+        { "L10", "I16" },
+        { "L11", "I17" },
+        { "L11A", "I18" },
+        { "L12", "I19" },
+        { "L12A", "I20" },
+        { "L13", "I21" },
+        { "L14", "I22" },
+        { "L15", "I23" },
+        { "L16", "I24" },
+        { "L17H", "I25" },
+        { "L18H", "I26" },
+        { "L17", "I27" },
+        { "L18", "I28" },
+        { "L19", "I29" },
+        { "L20", "I30" },
+        { "L21H", "I31" },
+        { "L22H", "I32" },
+        { "L21", "I33" },
+        { "L22", "I34" },
+
+        
+
+        
+        { "R7", "D13" },
+        { "R8", "D14" },
+        { "R9", "D15" },
+        { "R10", "D16" },
+        { "R11", "D17" },
+        { "R11A", "D18" },
+        { "R12", "D19" },
+        { "R12A", "D20" },
+        { "R13", "D21" },
+        { "R14", "D22" },
+        { "R15", "D23" },
+        { "R16", "D24" },
+        { "R17H", "D25" },
+        { "R18H", "D26" },
+        { "R17", "D27" },
+        { "R18", "D28" },
+        { "R19", "D29" },
+        { "R20", "D30" },
+        { "R21H", "D31" },
+        { "R22H", "D32" },
+        { "R21", "D33" },
+        { "R22", "D34" }
+        };
+
+        private async Task GenerateExcelReportAsync()
+        {
+            try
+            {
+                // 1. הגדרת נתיבים
+                string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates", "מDEX_EXCEL_דוח גוז.xlsx");
+                if (!File.Exists(templatePath))
+                {
+                    MessageBox.Show("קובץ תבנית האקסל לא נמצא בתיקיית Templates!");
+                    return;
+                }
+
+                // יצירת עותק עבודה זמני
+                string tempExcelPath = Path.Combine(Path.GetTempPath(), $"Report_{Guid.NewGuid()}.xlsx");
+                File.Copy(templatePath, tempExcelPath, true);
+
+                // 2. מילוי נתונים ראשוני עם ClosedXML
+                using (var workbook = new XLWorkbook(tempExcelPath))
+                {
+                    var worksheet = workbook.Worksheet(1); // הגיליון הראשון
+
+                    foreach (var img in ImageThumbnails)
+                    {
+                        string fileName = Path.GetFileNameWithoutExtension(img.FilePath);
+                        if (_imageCellMapping.ContainsKey(fileName))
+                        {
+                            string cellAddress = _imageCellMapping[fileName];
+                            worksheet.Cell(cellAddress).Value = img.Status;
+                        }
+                    }
+                    workbook.Save();
+                }
+
+                // 3. פתיחת הקובץ כדי שהמשתמש יוכל לערוך
+                // זה יפתח את האקסל המותקן במחשב (או כל תוכנה אחרת שפותחת .xlsx)
+                Process.Start(new ProcessStartInfo(tempExcelPath) { UseShellExecute = true });
+
+                // 4. הודעה למשתמש לחכות לסיום העריכה
+                MessageBox.Show("קובץ האקסל נפתח.\n" +
+                                "אנא בצעי את השינויים הרצויים, שמרי את הקובץ (Ctrl+S) באקסל,\n" +
+                                "ורק אז לחצי כאן על אישור כדי להפיק PDF.",
+                                "המתנה לעריכה", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // 5. המרה ל-PDF באמצעות FreeSpire.XLS
+                SaveFileDialog saveFileDialog = new SaveFileDialog
+                {
+                    Filter = "PDF Files (*.pdf)|*.pdf",
+                    FileName = "דוח_מסקנות_סופי.pdf"
+                };
+
+                if (saveFileDialog.ShowDialog() == true)
+                {
+                    Spire.Xls.Workbook spireWorkbook = new Spire.Xls.Workbook();
+                    spireWorkbook.LoadFromFile(tempExcelPath);
+                    spireWorkbook.SaveToFile(saveFileDialog.FileName, Spire.Xls.FileFormat.PDF);
+
+                    MessageBox.Show("הדוח נשמר בהצלחה!", "סיום", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"שגיאה בתהליך: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -508,44 +662,65 @@ namespace MyUserApp.ViewModels
         /// <summary>
         /// Initiates a drawing or selection action based on user input.
         /// </summary>
-        public void StartDrawing(float x, float y)
+        public void StartInteraction(float x, float y, bool isRightClick)
         {
-            // MODIFIED: Set the cursor to the drawing cursor.
-            CurrentCanvasCursor = _drawCursor;
+            // שמירת נקודת ההתחלה של האינטראקציה (במונחי מסך)
+            _interactionStartPoint = new SKPoint(x, y);
 
-            SKPoint? imagePoint = ScreenToImageCoordinates(new SKPoint(x, y));
-            if (imagePoint == null || imagePoint.Value.X < 0 || imagePoint.Value.X > 1 || imagePoint.Value.Y < 0 || imagePoint.Value.Y > 1)
+            if (isRightClick)
             {
-                _currentMode = InteractionMode.None;
-                return;
-            }
-
-            AnnotationModel clickedAnnotation = CheckForAnnotationHit(imagePoint.Value);
-
-            if (clickedAnnotation != null)
-            {
-                bool isNestablePair = (clickedAnnotation.Author == AuthorType.Inspector && ActiveRole == AuthorType.Verifier) ||
-                                      (clickedAnnotation.Author == AuthorType.Verifier && ActiveRole == AuthorType.Inspector);
-                if (isNestablePair)
-                {
-                    _currentMode = InteractionMode.Drawing;
-                    _interactionStartPoint = new SKPoint((float)clickedAnnotation.CenterX, (float)clickedAnnotation.CenterY);
-                    _previewAnnotation = new AnnotationModel { Author = ActiveRole, CenterX = clickedAnnotation.CenterX, CenterY = clickedAnnotation.CenterY, Radius = 0 };
-                    UpdateInteraction(x, y);
-                }
-                else if (IsAnnotationEditable(clickedAnnotation))
-                {
-                    SelectedAnnotation = clickedAnnotation;
-                    _currentMode = InteractionMode.None;
-                }
+                // --- מצב גרירה (Panning) ---
+                _currentMode = InteractionMode.Panning;
+                _panStartOffset = _panOffset; // שמירת האופסט הנוכחי כבסיס לגרירה
+                CurrentCanvasCursor = _panCursor;
             }
             else
             {
-                SelectedAnnotation = null;
-                _currentMode = InteractionMode.Drawing;
-                _interactionStartPoint = imagePoint.Value;
-                _previewAnnotation = new AnnotationModel { Author = ActiveRole, CenterX = _interactionStartPoint.X, CenterY = _interactionStartPoint.Y, Radius = 0 };
+                // --- מצב ציור/בחירה (לחיצה שמאלית) ---
+                // כאן אנחנו משתמשים בלוגיקה שכבר קיימת אצלך ב-StartDrawing המקורי
+
+                SKPoint? imagePoint = ScreenToImageCoordinates(new SKPoint(x, y));
+
+                if (imagePoint == null || imagePoint.Value.X < 0 || imagePoint.Value.X > 1 || imagePoint.Value.Y < 0 || imagePoint.Value.Y > 1)
+                {
+                    _currentMode = InteractionMode.None;
+                    return;
+                }
+
+                // בדיקה אם לחצו על עיגול קיים
+                AnnotationModel clickedAnnotation = CheckForAnnotationHit(imagePoint.Value);
+
+                if (clickedAnnotation != null)
+                {
+                    // אם זה שייך לתפקיד השני - מאפשר לצייר עיגול בתוכו (Nesting)
+                    bool isNestablePair = (clickedAnnotation.Author == AuthorType.Inspector && ActiveRole == AuthorType.Verifier) ||
+                                          (clickedAnnotation.Author == AuthorType.Verifier && ActiveRole == AuthorType.Inspector);
+
+                    if (isNestablePair)
+                    {
+                        _currentMode = InteractionMode.Drawing;
+                        _interactionStartPoint = new SKPoint((float)clickedAnnotation.CenterX, (float)clickedAnnotation.CenterY);
+                        _previewAnnotation = new AnnotationModel { Author = ActiveRole, CenterX = clickedAnnotation.CenterX, CenterY = clickedAnnotation.CenterY, Radius = 0 };
+                    }
+                    else if (IsAnnotationEditable(clickedAnnotation))
+                    {
+                        // בחירת עיגול קיים
+                        SelectedAnnotation = clickedAnnotation;
+                        _currentMode = InteractionMode.None;
+                    }
+                }
+                else
+                {
+                    // ציור עיגול חדש לגמרי
+                    SelectedAnnotation = null;
+                    _currentMode = InteractionMode.Drawing;
+                    _interactionStartPoint = imagePoint.Value; // כאן משתמשים בנקודת התמונה
+                    _previewAnnotation = new AnnotationModel { Author = ActiveRole, CenterX = imagePoint.Value.X, CenterY = imagePoint.Value.Y, Radius = 0 };
+                    CurrentCanvasCursor = _drawCursor;
+                }
             }
+
+            InvalidateCanvas();
         }
 
         /// <summary>
@@ -748,22 +923,23 @@ namespace MyUserApp.ViewModels
                     _report.ImagePaths.Add(item.FilePath);
                 }
 
-                // אם לא נבחרה תמונה עדיין, נבחר את הראשונה ברשימה החדשה
+               
                 if (SelectedImage == null && ImageThumbnails.Any())
                 {
                     SelectedImage = ImageThumbnails.First();
                 }
 
-                SetDirty(); // סימון שיש שינויים שלא נשמרו
+                SetDirty(); 
             }
         }
 
         /// <summary>
         /// Deletes the currently selected image and its data from the report.
         /// </summary>
+        /// 
         private async Task DeleteSelectedImageAsync()
         {
-            // אנחנו ניגשים למאפיין FilePath של האובייקט הנבחר כדי לקבל את הנתיב כטקסט
+            
             string imageToDelete = SelectedImage?.FilePath;
             if (string.IsNullOrEmpty(imageToDelete)) return;
             var result = MessageBox.Show("Are you sure you want to permanently delete this image and all its annotations?", "Confirm Deletion", MessageBoxButton.YesNo, MessageBoxImage.Warning);
@@ -772,10 +948,10 @@ namespace MyUserApp.ViewModels
             DeleteExistingExportFolder();
             SetDirty();
 
-            // מחפשים את האובייקט ברשימה שהנתיב שלו תואם לנתיב שרוצים למחוק
+            
             var itemToRemove = ImageThumbnails.FirstOrDefault(x => x.FilePath == imageToDelete);
 
-            // אם מצאנו, מקבלים את האינדקס שלו
+           
             int deletedImageIndex = -1;
             if (itemToRemove != null)
             {
@@ -805,7 +981,7 @@ namespace MyUserApp.ViewModels
             }
 
             await SaveAndExportFullReportAsync();
-            // אנחנו מחפשים ברשימה את האובייקט שהנתיב שלו שווה לנתיב שרצית לבחור
+            
             SelectedImage = ImageThumbnails.FirstOrDefault(x => x.FilePath == nextSelection);
         }
 
@@ -953,7 +1129,7 @@ namespace MyUserApp.ViewModels
             _undoStack.Clear();
             _redoStack.Clear();
             UpdateCommandStates();
-        }
+        }  
 
         private void UpdateCommandStates()
         {
@@ -1054,18 +1230,18 @@ namespace MyUserApp.ViewModels
         public void Dispose()
         {
             _currentBitmap?.Dispose();
-        }
+        } 
         #endregion
     }
 
-    // תוסיפי את זה בסוף הקובץ
+    
     public class ImageItemModel : BaseViewModel
     {
         public string FilePath { get; set; }
 
         private string _status = "שמיש";
         public string Status
-        {
+        { 
             get => _status;
             set { _status = value; OnPropertyChanged(); }
         }
