@@ -27,5 +27,9 @@ namespace MyUserApp.Models
         /// A list of predefined reasons for an inspection.
         /// </summary>
         public ObservableCollection<string> Reasons { get; set; } = new ObservableCollection<string>();
+
+
+
+        public ObservableCollection<string> TestDates { get; set; } = new ObservableCollection<string>();
     }
 }

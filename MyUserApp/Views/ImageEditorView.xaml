@@ -80,6 +80,7 @@
                                     <RowDefinition/>
                                     <RowDefinition/>
                                     <RowDefinition/>
+                                    <RowDefinition/>
                                 </Grid.RowDefinitions>
                                 <TextBlock Grid.Row="0" Text="Aircraft Type:" VerticalAlignment="Center" Margin="0,0,10,0"/>
                                 <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding AircraftTypes}" SelectedItem="{Binding ReportAircraftType, Mode=TwoWay}" Margin="0,3"/>
@@ -89,10 +90,12 @@
                                 <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding AircraftSides}" SelectedItem="{Binding ReportAircraftSide, Mode=TwoWay}" Margin="0,3"/>
                                 <TextBlock Grid.Row="3" Text="Reason:" VerticalAlignment="Center" Margin="0,0,10,0"/>
                                 <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{Binding Reasons}" SelectedItem="{Binding ReportReason, Mode=TwoWay}" Margin="0,3"/>
-                                <TextBlock Grid.Row="4" Text="Inspector:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding Usernames}" SelectedItem="{Binding ReportInspectorName, Mode=TwoWay}" Margin="0,3"/>
-                                <TextBlock Grid.Row="5" Text="Verifier:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <ComboBox Grid.Row="5" Grid.Column="1" ItemsSource="{Binding Usernames}" SelectedItem="{Binding ReportVerifierName, Mode=TwoWay}" Margin="0,3"/>
+                                <TextBlock Grid.Row="4" Text="Date:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding TestDates}" SelectedItem="{Binding ReportTestDate, Mode=TwoWay}" Margin="0,3"/>
+                                <TextBlock Grid.Row="5" Text="Inspector:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <ComboBox Grid.Row="5" Grid.Column="1" ItemsSource="{Binding Usernames}" SelectedItem="{Binding ReportInspectorName, Mode=TwoWay}" Margin="0,3"/>
+                                <TextBlock Grid.Row="6" Text="Verifier:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <ComboBox Grid.Row="6" Grid.Column="1" ItemsSource="{Binding Usernames}" SelectedItem="{Binding ReportVerifierName, Mode=TwoWay}" Margin="0,3"/>
                             </Grid>
                         </Expander>
                         <Expander Header="Annotation Filters" IsExpanded="True">
@@ -257,10 +260,7 @@
             </StackPanel>
             <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="10">
 
-                <Button Content="דוח מסקנות" 
-            Command="{Binding GenerateExcelReportCommand}" 
-            Style="{DynamicResource SecondaryButtonStyle}" 
-            Margin="0,0,10,0"/>
+                 
 
                 <Button Content="Run AI Analysis" Command="{Binding RunAiAnalysisCommand}" Style="{DynamicResource SecondaryButtonStyle}"/>
                 <Button Command="{Binding SaveOnlyCommand}" Margin="10,0,0,0" Style="{StaticResource SaveButtonStyle}" ToolTip="Save all changes and export the full report."/>

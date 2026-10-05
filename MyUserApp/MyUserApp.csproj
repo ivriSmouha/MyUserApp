@@ -57,10 +57,13 @@
 
   <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.105.0" />
+    <PackageReference Include="fo-dicom" Version="5.2.6" />
+    <PackageReference Include="fo-dicom.Codecs" Version="5.16.7" />
     <PackageReference Include="FreeSpire.XLS" Version="14.2.0" />
     <PackageReference Include="MahApps.Metro.IconPacks.Material" Version="6.1.0" />
     <PackageReference Include="MahApps.Metro.IconPacks.Modern" Version="4.11.0" />
     <PackageReference Include="SkiaSharp.Views.WPF" Version="2.88.8" />
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup>

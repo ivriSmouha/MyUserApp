@@ -8,7 +8,7 @@ namespace MyUserApp
     {
         public App()
         {
-            // The ThemeService now manages themes. This constructor can be empty.
+           //לא היה כלום
         }
     }
 }

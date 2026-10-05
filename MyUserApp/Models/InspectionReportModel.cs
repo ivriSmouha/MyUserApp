@@ -48,6 +48,11 @@
         public string Reason { get; set; }
 
         /// <summary>
+        /// Gets or sets the date of the test/inspection.
+        /// </summary>
+        public string TestDate { get; set; }
+
+        /// <summary>
         /// The username of the inspector assigned to this report.
         /// </summary>
         public string InspectorName { get; set; }

@@ -159,6 +159,7 @@ namespace MyUserApp.ViewModels
         public ObservableCollection<string> AircraftSides { get; }
         public ObservableCollection<string> Reasons { get; }
         public ObservableCollection<string> Usernames { get; }
+        public ObservableCollection<string> TestDates { get; }
         #endregion
 
         #region Report Detail Properties
@@ -168,7 +169,17 @@ namespace MyUserApp.ViewModels
         public string ReportReason { get => _report.Reason; set { if (_report.Reason == value) return; _report.Reason = value; SetDirty(); OnPropertyChanged(); } }
         public string ReportInspectorName { get => _report.InspectorName; set { if (_report.InspectorName == value) return; _report.InspectorName = value; SetDirty(); OnPropertyChanged(); } }
         public string ReportVerifierName { get => _report.VerifierName; set { if (_report.VerifierName == value) return; _report.VerifierName = value; SetDirty(); OnPropertyChanged(); } }
-
+        public string ReportTestDate
+        {
+            get => _report.TestDate;
+            set
+            {
+                if (_report.TestDate == value) return;
+                _report.TestDate = value;
+                SetDirty();
+                OnPropertyChanged();
+            }
+        }
         /// <summary>
         /// Updates the project's display name and marks the report as dirty.
         /// </summary>
@@ -267,6 +278,7 @@ namespace MyUserApp.ViewModels
             AircraftSides = new ObservableCollection<string>(options.AircraftSides);
             Reasons = new ObservableCollection<string>(options.Reasons);
             Usernames = new ObservableCollection<string>(UserService.Instance.Users.Select(u => u.Username));
+            TestDates = new ObservableCollection<string>(options.TestDates);
 
             UndoCommand = new RelayCommand(Undo, CanUndo);
             RedoCommand = new RelayCommand(Redo, CanRedo);
@@ -311,6 +323,7 @@ namespace MyUserApp.ViewModels
         {
             _currentBitmap?.Dispose();
             _currentBitmap = null;
+
             if (SelectedImage == null || !File.Exists(SelectedImage.FilePath))
             {
                 CurrentAnnotations = new ObservableCollection<AnnotationModel>();
@@ -319,6 +332,7 @@ namespace MyUserApp.ViewModels
                 return;
             }
 
+            // === טעינת תמונה סטנדרטית (PNG, JPG, BMP) ללא נעילת הקובץ בדיסק ===
             using (var tempStream = new MemoryStream(await File.ReadAllBytesAsync(SelectedImage.FilePath)))
             {
                 _currentBitmap = await Task.Run(() => SKBitmap.Decode(tempStream));
@@ -442,9 +456,10 @@ namespace MyUserApp.ViewModels
                         }
                     }
                 }
-            });
+            }); 
 
-            MessageBox.Show($"Report saved and all {_report.ImagePaths.Count} images exported to:\n{outputDirectory}", "Export Complete");
+            MessageBox.Show($"? תרצה לשמור את כל {_report.ImagePaths.Count} תמונות בפרויקט ");
+           // MessageBox.Show($"Report saved and all {_report.ImagePaths.Count} images exported to:\n{outputDirectory}", "Export Complete");
             IsDirty = false;
         }
 
@@ -574,7 +589,7 @@ namespace MyUserApp.ViewModels
         {
             if (IsDirty)
             {
-                var result = MessageBox.Show("You have unsaved changes. Would you like to save them before finishing?", "Unsaved Changes", MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
+                var result = MessageBox.Show("? עשית שינויים תרצה לשמור מצב נוכחי", "Unsaved Changes", MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
                 if (result == MessageBoxResult.Yes)
                 {
                     await SaveAndExportFullReportAsync();
@@ -598,7 +613,7 @@ namespace MyUserApp.ViewModels
         {
             if (!IsDirty) return true;
 
-            var result = MessageBox.Show("You have unsaved changes. Would you like to save them before closing?", "Unsaved Changes", MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
+            var result = MessageBox.Show("? עשית שינויים תרצה לשמור מצב נוכחי", "Unsaved Changes", MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
             if (result == MessageBoxResult.Yes)
             {
                 await SaveAndExportFullReportAsync();
@@ -1215,6 +1230,10 @@ namespace MyUserApp.ViewModels
         private bool IsAnnotationEditable(AnnotationModel annotation)
         {
             if (annotation == null) return false;
+
+            // *** השינוי החדש: אם העיגול נוצר על ידי ה-AI, הוא תמיד ניתן לבחירה ומחיקה ***
+            if (annotation.Author == AuthorType.AI) return true;
+
             if (IsDualRoleUser)
             {
                 return annotation.Author == AuthorType.Inspector || annotation.Author == AuthorType.Verifier;

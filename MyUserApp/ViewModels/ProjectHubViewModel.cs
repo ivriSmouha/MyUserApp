@@ -232,21 +232,18 @@ namespace MyUserApp.ViewModels
                 {
                     var worksheet = workbook.Worksheet(1);
 
-                    // פונקציית עזר פנימית לביצוע המילוי - חוסכת כתיבה כפולה לימין ושמאל
+                    
                     void FillExcelFromProject(ProjectDisplayViewModel project)
                     {
                         if (project?.Report?.ImageStatuses == null) return;
 
-                        // רצים על כל הסטטוסים שיש בפרויקט
+                      
                         foreach (var statusEntry in project.Report.ImageStatuses)
                         {
-                            // מחלצים את שם הקובץ בלבד מתוך המפתח (למקרה שהמפתח הוא נתיב מלא)
-                            // והופכים לאותיות גדולות כדי למנוע כפילויות
+                          
                             string fileName = Path.GetFileNameWithoutExtension(statusEntry.Key).ToUpper();
                             string status = statusEntry.Value;
 
-                            // בודקים אם שם הקובץ הזה קיים במיפוי לאקסל שלנו
-                            // שימי לב: הפכתי גם את המפתח במילון המיפוי ל-ToUpper
                             var mappingKey = _imageCellMapping.Keys.FirstOrDefault(k => k.ToUpper() == fileName);
 
                             if (mappingKey != null && !string.IsNullOrEmpty(status))
@@ -254,27 +251,27 @@ namespace MyUserApp.ViewModels
                                 string targetCell = _imageCellMapping[mappingKey];
                                 worksheet.Cell(targetCell).Value = status;
 
-                                // Debug קטן למקרה שזה עדיין לא עובד:
+                                
                                 Debug.WriteLine($"Filled Cell {targetCell} with {status} for file {fileName}");
                             }
                         }
                     }
 
-                    // א. מילוי נתונים מהפרויקט השמאלי
+                    
                     FillExcelFromProject(leftProject);
 
-                    // ב. מילוי נתונים מהפרויקט הימני
+                  
                     FillExcelFromProject(rightProject);
 
                     workbook.Save();
                 }
 
-                // 4. פתיחת הקובץ לעריכה (בדיוק כמו בקוד שעובד)
+               
                 Process.Start(new ProcessStartInfo(tempExcelPath) { UseShellExecute = true });
 
                 MessageBox.Show("הקובץ נפתח. בצעי שינויים, שמרי, ולחצי אישור לייצוא PDF.");
 
-                // 5. שמירה ל-PDF (בדיוק כמו בקוד שעובד)
+                
                 SaveFileDialog saveFileDialog = new SaveFileDialog
                 {
                     Filter = "PDF Files (*.pdf)|*.pdf",
@@ -287,7 +284,7 @@ namespace MyUserApp.ViewModels
                     spireWorkbook.LoadFromFile(tempExcelPath);
                     spireWorkbook.SaveToFile(saveFileDialog.FileName, Spire.Xls.FileFormat.PDF);
 
-                    MessageBox.Show("הדוח נשמר בהצלחה!");
+                    MessageBox.Show("!הדוח נשמר בהצלחה");
                 }
             }
             catch (Exception ex)

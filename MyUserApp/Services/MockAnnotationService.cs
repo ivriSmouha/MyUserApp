@@ -23,7 +23,7 @@ namespace MyUserApp.Services
                 {
                     Author = AuthorType.AI,
                     CenterX = 0.25,
-                    CenterY = 0.3,
+                    CenterY = 0.25,
                     Radius = 0.05
                 },
                 new AnnotationModel

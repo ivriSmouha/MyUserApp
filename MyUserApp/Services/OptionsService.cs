@@ -1,6 +1,7 @@
 ﻿using MyUserApp.Models;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 
 namespace MyUserApp.Services
@@ -50,7 +51,8 @@ namespace MyUserApp.Services
                         AircraftTypes = new ObservableCollection<string>(loadedOptions.AircraftTypes ?? Enumerable.Empty<string>()),
                         TailNumbers = new ObservableCollection<string>(loadedOptions.TailNumbers ?? Enumerable.Empty<string>()),
                         AircraftSides = new ObservableCollection<string>(loadedOptions.AircraftSides ?? Enumerable.Empty<string>()),
-                        Reasons = new ObservableCollection<string>(loadedOptions.Reasons ?? Enumerable.Empty<string>())
+                        Reasons = new ObservableCollection<string>(loadedOptions.Reasons ?? Enumerable.Empty<string>()),
+                        TestDates = new ObservableCollection<string>(loadedOptions.TestDates ?? Enumerable.Empty<string>())
                     };
                 }
                 catch // Catch potential file access or JSON format errors
@@ -71,7 +73,8 @@ namespace MyUserApp.Services
                 AircraftTypes = { "Boeing 737", "Airbus A320" },
                 AircraftSides = { "Left", "Right", "Top", "Bottom" },
                 Reasons = { "Routine Check", "Reported Issue" },
-                TailNumbers = { "N123UA", "N456SW", "N789DL" }
+                TailNumbers = { "N123UA", "N456SW", "N789DL" },
+                TestDates = new ObservableCollection<string> { DateTime.Today.ToString("yyyy-MM-dd") }
             };
             SaveOptions();
         }
@@ -80,6 +83,25 @@ namespace MyUserApp.Services
         {
             var json = JsonSerializer.Serialize(Options, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(FilePath, json);
+        }
+        public void AddTestDate(string newDate)
+        {
+            if (!string.IsNullOrWhiteSpace(newDate) && !Options.TestDates.Contains(newDate))
+            {
+                Options.TestDates.Add(newDate);
+                SaveOptions();
+            }
+        }
+
+        /// <summary>
+        /// מוחק תאריך בדיקה מרשימת האפשרויות
+        /// </summary>
+        public void DeleteTestDate(string dateToDelete)
+        {
+            if (Options.TestDates.Remove(dateToDelete))
+            {
+                SaveOptions();
+            }
         }
 
         #region Methods for Modifying Options

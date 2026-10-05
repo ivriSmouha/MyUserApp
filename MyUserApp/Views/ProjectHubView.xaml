@@ -116,7 +116,7 @@
                                 <!-- תפריט לחיצה ימנית על התיקייה -->
                                 <StackPanel.ContextMenu>
                                     <ContextMenu Background="{DynamicResource PrimaryBackgroundBrush}">
-                                        <MenuItem Header="הפק דוח מסקנות 2" 
+                                        <MenuItem Header="הפק דוח מסקנות " 
                           Command="{Binding PlacementTarget.Tag.GenerateCombinedReportCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                           CommandParameter="{Binding}">
                                             <MenuItem.Icon>

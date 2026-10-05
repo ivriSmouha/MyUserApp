@@ -38,5 +38,5 @@ namespace MyUserApp.ViewModels
         {
             return UserService.Instance.Users.FirstOrDefault(u => u.Username == username && u.Password == password);
         }
-    }
+    }  
 }

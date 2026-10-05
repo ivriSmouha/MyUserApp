@@ -131,6 +131,7 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
                     <!-- Section for managing Aircraft Types. -->
@@ -233,6 +234,32 @@
                                                 <Button Style="{DynamicResource IconButtonToolBarStyle}" Padding="5" Width="28" Height="28"
                                                         Command="{Binding DataContext.DeleteReasonCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
                                                         CommandParameter="{Binding}">
+                                                    <iconPacks:PackIconModern Kind="Delete" Width="12" Height="12"/>
+                                                </Button>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </GroupBox>
+
+                    <GroupBox Grid.Column="4" Header="Dates of test" Margin="5">
+                        <DockPanel>
+                            <!-- Input area for adding a new test date -->
+                            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,10,0,0">
+                                <TextBox Text="{Binding NewTestDate, UpdateSourceTrigger=PropertyChanged}" Width="120" Margin="0,0,5,0"/>
+                                <Button Content="Add" Command="{Binding AddTestDateCommand}"/>
+                            </StackPanel>
+                            <DataGrid ItemsSource="{Binding AppOptions.TestDates}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="False" HeadersVisibility="Column">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Date" Binding="{Binding StringFormat=\{0:yyyy-MM-dd\}}" Width="*"/>
+                                    <DataGridTemplateColumn Width="Auto">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Button Style="{DynamicResource IconButtonToolBarStyle}" Padding="5" Width="28" Height="28"
+                                            Command="{Binding DataContext.DeleteTestDateCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
+                                            CommandParameter="{Binding}">
                                                     <iconPacks:PackIconModern Kind="Delete" Width="12" Height="12"/>
                                                 </Button>
                                             </DataTemplate>

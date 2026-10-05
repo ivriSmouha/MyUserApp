@@ -57,6 +57,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <!-- Each row contains a label and a ComboBox for selecting report data. -->
@@ -72,11 +73,14 @@
                     <TextBlock Grid.Row="3" Text="Reason for Inspection:" VerticalAlignment="Center" Margin="5"/>
                     <ComboBox Grid.Row="3" Grid.Column="1" Margin="5" ItemsSource="{Binding Reasons}" SelectedItem="{Binding SelectedReason}" IsEditable="False"/>
 
-                    <TextBlock Grid.Row="4" Text="Inspector Name:" VerticalAlignment="Center" Margin="5"/>
-                    <ComboBox Grid.Row="4" Grid.Column="1" Margin="5" ItemsSource="{Binding Usernames}" SelectedItem="{Binding SelectedInspector}"/>
+                    <TextBlock Grid.Row="4" Text="Date of Test:" VerticalAlignment="Center" Margin="5"/>
+                    <ComboBox Grid.Row="4" Grid.Column="1" Margin="5" ItemsSource="{Binding TestDates}" SelectedItem="{Binding SelectedTestDate}" IsEditable="False"/>
 
-                    <TextBlock Grid.Row="5" Text="Verifier Name:" VerticalAlignment="Center" Margin="5"/>
-                    <ComboBox Grid.Row="5" Grid.Column="1" Margin="5" ItemsSource="{Binding Usernames}" SelectedItem="{Binding SelectedVerifier}"/>
+                    <TextBlock Grid.Row="5" Text="Inspector Name:" VerticalAlignment="Center" Margin="5"/>
+                    <ComboBox Grid.Row="5" Grid.Column="1" Margin="5" ItemsSource="{Binding Usernames}" SelectedItem="{Binding SelectedInspector}"/>
+
+                    <TextBlock Grid.Row="6" Text="Verifier Name:" VerticalAlignment="Center" Margin="5"/>
+                    <ComboBox Grid.Row="6" Grid.Column="1" Margin="5" ItemsSource="{Binding Usernames}" SelectedItem="{Binding SelectedVerifier}"/>
                 </Grid>
             </GroupBox>
 

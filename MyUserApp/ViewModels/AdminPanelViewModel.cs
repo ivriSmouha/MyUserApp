@@ -1,5 +1,6 @@
 ﻿using MyUserApp.Models;
 using MyUserApp.Services;
+using System;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Data;
@@ -82,6 +83,18 @@ namespace MyUserApp.ViewModels
         /// </summary>
         private string _newTailNumber;
         public string NewTailNumber { get => _newTailNumber; set { _newTailNumber = value; OnPropertyChanged(); ((RelayCommand)AddTailNumberCommand).RaiseCanExecuteChanged(); } }
+
+        private string _newTestDate;
+        public string NewTestDate
+        {
+            get => _newTestDate;
+            set
+            {
+                _newTestDate = value;
+                OnPropertyChanged();
+                ((RelayCommand)AddTestDateCommand).RaiseCanExecuteChanged();
+            }
+        }
         #endregion
 
         #region Commands
@@ -97,6 +110,8 @@ namespace MyUserApp.ViewModels
         public ICommand DeleteReasonCommand { get; }
         public ICommand AddTailNumberCommand { get; }
         public ICommand DeleteTailNumberCommand { get; }
+        public ICommand AddTestDateCommand { get; }
+        public ICommand DeleteTestDateCommand { get; }
         #endregion
 
         /// <summary>
@@ -128,6 +143,8 @@ namespace MyUserApp.ViewModels
             DeleteReasonCommand = new RelayCommand(DeleteReason);
             AddTailNumberCommand = new RelayCommand(AddTailNumber, _ => !string.IsNullOrEmpty(NewTailNumber));
             DeleteTailNumberCommand = new RelayCommand(DeleteTailNumber);
+            AddTestDateCommand = new RelayCommand(AddTestDate, _ => !string.IsNullOrWhiteSpace(NewTestDate));
+            DeleteTestDateCommand = new RelayCommand(DeleteTestDate);
         }
 
         #region User Management Methods
@@ -274,6 +291,32 @@ namespace MyUserApp.ViewModels
             if (obj is string tailNumberToDelete)
             {
                 OptionsService.Instance.DeleteTailNumber(tailNumberToDelete);
+                OnPropertyChanged(nameof(AppOptions));
+            }
+        }
+
+        /// <summary>
+        /// Adds a new test date to the global options.
+        /// </summary>
+        /// 
+        private void AddTestDate(object obj)
+        {
+            if (!string.IsNullOrWhiteSpace(NewTestDate))
+            {
+                OptionsService.Instance.AddTestDate(NewTestDate);
+                NewTestDate = ""; // מרוקן את ה-TextBox לאחר הלחיצה
+                OnPropertyChanged(nameof(AppOptions));
+            }
+        }
+
+        /// <summary>
+        /// Deletes a test date from the global options.
+        /// </summary>
+        private void DeleteTestDate(object obj)
+        {
+            if (obj is string dateToDelete)
+            {
+                OptionsService.Instance.DeleteTestDate(dateToDelete);
                 OnPropertyChanged(nameof(AppOptions));
             }
         }
