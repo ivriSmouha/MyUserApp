@@ -1,6 +1,8 @@
 ﻿// File: MyUserApp/App.xaml.cs
 
 using System.Windows;
+using FellowOakDicom;
+using FellowOakDicom.Imaging;
 
 namespace MyUserApp
 {
@@ -8,7 +10,9 @@ namespace MyUserApp
     {
         public App()
         {
-           //לא היה כלום
+            new DicomSetupBuilder()
+          .RegisterServices(s => s.AddFellowOakDicom().AddImageManager<RawImageManager>())
+          .Build();
         }
     }
 }

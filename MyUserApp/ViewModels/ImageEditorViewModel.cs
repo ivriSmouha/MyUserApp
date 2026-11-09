@@ -9,6 +9,8 @@ using ClosedXML.Excel; // לעריכת האקסל
 using Spire.Xls;       // להמרה ל-PDF
 using System.Diagnostics; // לפתיחת הקובץ במחשב
 using System.Windows;
+using FellowOakDicom;
+using FellowOakDicom.Imaging;
 
 using System.Windows.Input; // Added for Cursor support
 
@@ -162,6 +164,17 @@ namespace MyUserApp.ViewModels
         public ObservableCollection<string> TestDates { get; }
         #endregion
 
+        private bool _isAiLoading;
+        public bool IsAiLoading
+        {
+            get => _isAiLoading;
+            set
+            {
+                if (_isAiLoading == value) return;
+                _isAiLoading = value;
+                OnPropertyChanged();
+            }
+        }
         #region Report Detail Properties
         public string ReportAircraftType { get => _report.AircraftType; set { if (_report.AircraftType == value) return; _report.AircraftType = value; UpdateProjectNameAndSetDirty(); OnPropertyChanged(); } }
         public string ReportTailNumber { get => _report.TailNumber; set { if (_report.TailNumber == value) return; _report.TailNumber = value; UpdateProjectNameAndSetDirty(); OnPropertyChanged(); } }
@@ -228,6 +241,7 @@ namespace MyUserApp.ViewModels
         public ICommand ResetBrightnessCommand { get; }
         public ICommand ResetContrastCommand { get; }
         public ICommand SwitchRoleCommand { get; }
+        public ICommand ExportSingleImageCommand { get; }
         #endregion
 
         public event Action OnFinished;
@@ -296,6 +310,7 @@ namespace MyUserApp.ViewModels
             SaveCommand = new RelayCommand(async _ => await SaveAndExportFullReportAsync());
 
             GenerateExcelReportCommand = new RelayCommand(async _ => await GenerateExcelReportAsync());
+            ExportSingleImageCommand = new RelayCommand(ExportSingleImage);
             // ADDED: Call the new method to initialize cursors.
             InitializeCursors();
         }
@@ -332,10 +347,43 @@ namespace MyUserApp.ViewModels
                 return;
             }
 
-            // === טעינת תמונה סטנדרטית (PNG, JPG, BMP) ללא נעילת הקובץ בדיסק ===
-            using (var tempStream = new MemoryStream(await File.ReadAllBytesAsync(SelectedImage.FilePath)))
+            string ext = Path.GetExtension(SelectedImage.FilePath).ToLower();
+
+            try
             {
-                _currentBitmap = await Task.Run(() => SKBitmap.Decode(tempStream));
+                // === טעינת קובץ DICOM ===
+                if (ext == ".dcm" || ext == ".dicom")
+                {
+                    _currentBitmap = await Task.Run(() =>
+                    {
+                        var file = DicomFile.Open(SelectedImage.FilePath);
+                        var dicomImage = new DicomImage(file.Dataset);
+                        IImage image = dicomImage.RenderImage();
+
+                        // חילוץ מערך הפיקסלים הגולמי מ-fo-dicom
+                        byte[] pixels = image.AsBytes();
+
+                        // יצירת SKBitmap במידות של תמונת ה-DICOM
+                        var bitmap = new SKBitmap(image.Width, image.Height, SKColorType.Bgra8888, SKAlphaType.Premul);
+
+                        // העתקת הפיקסלים ישירות לזיכרון של SkiaSharp
+                        System.Runtime.InteropServices.Marshal.Copy(pixels, 0, bitmap.GetPixels(), pixels.Length);
+
+                        return bitmap;
+                    });
+                }
+                else
+                {
+                    using (var tempStream = new MemoryStream(await File.ReadAllBytesAsync(SelectedImage.FilePath)))
+                    {
+                        _currentBitmap = await Task.Run(() => SKBitmap.Decode(tempStream));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"טעינת התמונה נכשלה: {ex.Message}", "שגיאת טעינה", MessageBoxButton.OK, MessageBoxImage.Error);
+                _currentBitmap = null;
             }
 
             if (!_sessionAnnotations.TryGetValue(SelectedImage.FilePath, out var existingAnnotations))
@@ -351,6 +399,7 @@ namespace MyUserApp.ViewModels
             OnPropertyChanged(nameof(BrightnessValue));
             OnPropertyChanged(nameof(ContrastValue));
             OnPropertyChanged(nameof(CurrentAnnotations));
+            InvalidateCanvas(); // רענון הקנווס להצגת התמונה
         }
 
         /// <summary>
@@ -416,47 +465,83 @@ namespace MyUserApp.ViewModels
 
                     _sessionAdjustments.TryGetValue(imagePath, out var adjustments);
 
-                    using (var originalBitmap = SKBitmap.Decode(imagePath))
-                    using (var exportSurface = SKSurface.Create(new SKImageInfo(originalBitmap.Width, originalBitmap.Height)))
+                    SKBitmap originalBitmap = null;
+                    string ext = Path.GetExtension(imagePath).ToLower();
+
+                    try
                     {
-                        var canvas = exportSurface.Canvas;
-
-                        
-                        using (var bitmapPaint = new SKPaint { ColorFilter = CreateColorFilter(adjustments?.Brightness ?? 0f, adjustments?.Contrast ?? 1f) })
+                        // אם מדובר בקובץ DICOM – טוענים בעזרת fo-dicom
+                        if (ext == ".dcm" || ext == ".dicom")
                         {
-                            canvas.DrawBitmap(originalBitmap, 0, 0, bitmapPaint);
-                        }
+                            var file = DicomFile.Open(imagePath);
+                            var dicomImage = new DicomImage(file.Dataset);
 
-                        // ציור האנוטציות על התמונה המיוצאת
-                        if (_sessionAnnotations.TryGetValue(imagePath, out var annotationsForThisImage))
-                        {
-                            using (var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 4 })
+                            using (var renderedImage = dicomImage.RenderImage())
+                            using (var bitmap = renderedImage.As<System.Drawing.Bitmap>())
+                            using (var stream = new MemoryStream())
                             {
-                                foreach (var annotation in annotationsForThisImage)
-                                {
-                                    paint.Color = GetAnnotationSKColor(annotation);
-                                    canvas.DrawOval(
-                                        (float)(annotation.CenterX * originalBitmap.Width),
-                                        (float)(annotation.CenterY * originalBitmap.Height),
-                                        (float)(annotation.Radius * originalBitmap.Width),
-                                        (float)(annotation.Radius * originalBitmap.Width),
-                                        paint
-                                    );
-                                }
+                                bitmap.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
+                                stream.Position = 0;
+                                originalBitmap = SKBitmap.Decode(stream);
+                            }
+                        }
+                        else // עבור תמונות רגילות (JPG, PNG וכו')
+                        {
+                            using (var tempStream = new MemoryStream(File.ReadAllBytes(imagePath)))
+                            {
+                                originalBitmap = SKBitmap.Decode(tempStream);
                             }
                         }
 
-                       
-                        string outputFilePath = Path.Combine(outputDirectory, Path.GetFileName(imagePath));
-                        using (var image = exportSurface.Snapshot())
-                        using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 95))
-                        using (var stream = File.OpenWrite(outputFilePath))
+                        if (originalBitmap == null) continue;
+
+                        using (originalBitmap)
+                        using (var exportSurface = SKSurface.Create(new SKImageInfo(originalBitmap.Width, originalBitmap.Height)))
                         {
-                            data.SaveTo(stream);
+                            var canvas = exportSurface.Canvas;
+
+                            using (var bitmapPaint = new SKPaint { ColorFilter = CreateColorFilter(adjustments?.Brightness ?? 0f, adjustments?.Contrast ?? 1f) })
+                            {
+                                canvas.DrawBitmap(originalBitmap, 0, 0, bitmapPaint);
+                            }
+
+                            // ציור האנוטציות על התמונה המיוצאת
+                            if (_sessionAnnotations.TryGetValue(imagePath, out var annotationsForThisImage))
+                            {
+                                using (var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 4 })
+                                {
+                                    foreach (var annotation in annotationsForThisImage)
+                                    {
+                                        paint.Color = GetAnnotationSKColor(annotation);
+                                        canvas.DrawOval(
+                                            (float)(annotation.CenterX * originalBitmap.Width),
+                                            (float)(annotation.CenterY * originalBitmap.Height),
+                                            (float)(annotation.Radius * originalBitmap.Width),
+                                            (float)(annotation.Radius * originalBitmap.Width),
+                                            paint
+                                        );
+                                    }
+                                }
+                            }
+
+                            // שמירת הקובץ המיוצא כתמונת JPEG
+                            string outputFileName = Path.ChangeExtension(Path.GetFileName(imagePath), ".jpg");
+                            string outputFilePath = Path.Combine(outputDirectory, outputFileName);
+                            using (var image = exportSurface.Snapshot())
+                            using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 95))
+                            using (var stream = File.OpenWrite(outputFilePath))
+                            {
+                                data.SaveTo(stream);
+                            }
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        // טיפול בלוג/שגיאות במידה ותמונה ספציפית נכשלה בייצוא
+                        System.Diagnostics.Debug.WriteLine($"Export failed for {imagePath}: {ex.Message}");
+                    }
                 }
-            }); 
+            });
 
             MessageBox.Show($"? תרצה לשמור את כל {_report.ImagePaths.Count} תמונות בפרויקט ");
            // MessageBox.Show($"Report saved and all {_report.ImagePaths.Count} images exported to:\n{outputDirectory}", "Export Complete");
@@ -579,6 +664,111 @@ namespace MyUserApp.ViewModels
             catch (Exception ex)
             {
                 MessageBox.Show($"שגיאה בתהליך: {ex.Message}");
+            }
+        }
+
+        private async void ExportSingleImage(object obj)
+        {
+            var item = obj as ImageItemModel ?? SelectedImage;
+            if (item == null || string.IsNullOrEmpty(item.FilePath) || !File.Exists(item.FilePath))
+            {
+                MessageBox.Show("הקובץ לא נמצא.", "שגיאה", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var saveFileDialog = new SaveFileDialog
+            {
+                Filter = "JPEG Image (*.jpg;*.jpeg)|*.jpg;*.jpeg",
+                DefaultExt = ".jpg",
+                FileName = Path.GetFileNameWithoutExtension(item.FilePath) + ".jpg"
+            };
+
+            if (saveFileDialog.ShowDialog() != true)
+                return;
+
+            string destinationPath = saveFileDialog.FileName;
+            string imagePath = item.FilePath;
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    _sessionAdjustments.TryGetValue(imagePath, out var adjustments);
+
+                    SKBitmap originalBitmap = null;
+                    string ext = Path.GetExtension(imagePath).ToLower();
+
+                    // 1. טעינת התמונה (תמיכה ב-DICOM ותמונות רגילות)
+                    if (ext == ".dcm" || ext == ".dicom")
+                    {
+                        var file = DicomFile.Open(imagePath);
+                        var dicomImage = new DicomImage(file.Dataset);
+
+                        using (var renderedImage = dicomImage.RenderImage())
+                        using (var bitmap = renderedImage.As<System.Drawing.Bitmap>())
+                        using (var stream = new MemoryStream())
+                        {
+                            bitmap.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
+                            stream.Position = 0;
+                            originalBitmap = SKBitmap.Decode(stream);
+                        }
+                    }
+                    else
+                    {
+                        using (var tempStream = new MemoryStream(File.ReadAllBytes(imagePath)))
+                        {
+                            originalBitmap = SKBitmap.Decode(tempStream);
+                        }
+                    }
+
+                    if (originalBitmap == null) return;
+
+                    // 2. יצירת פני השטח לציור התמונה יחד עם האנוטציות
+                    using (originalBitmap)
+                    using (var exportSurface = SKSurface.Create(new SKImageInfo(originalBitmap.Width, originalBitmap.Height)))
+                    {
+                        var canvas = exportSurface.Canvas;
+
+                        // החלת בהירות וניגודיות
+                        using (var bitmapPaint = new SKPaint { ColorFilter = CreateColorFilter(adjustments?.Brightness ?? 0f, adjustments?.Contrast ?? 1f) })
+                        {
+                            canvas.DrawBitmap(originalBitmap, 0, 0, bitmapPaint);
+                        }
+
+                        // 3. ציור העיגולים (Annotations) על גבי התמונה
+                        if (_sessionAnnotations.TryGetValue(imagePath, out var annotationsForThisImage))
+                        {
+                            using (var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 4 })
+                            {
+                                foreach (var annotation in annotationsForThisImage)
+                                {
+                                    paint.Color = GetAnnotationSKColor(annotation);
+                                    canvas.DrawOval(
+                                        (float)(annotation.CenterX * originalBitmap.Width),
+                                        (float)(annotation.CenterY * originalBitmap.Height),
+                                        (float)(annotation.Radius * originalBitmap.Width),
+                                        (float)(annotation.Radius * originalBitmap.Width),
+                                        paint
+                                    );
+                                }
+                            }
+                        }
+
+                        // 4. שמירה סופית כקובץ JPEG באיכות גבוהה
+                        using (var image = exportSurface.Snapshot())
+                        using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 95))
+                        using (var stream = File.OpenWrite(destinationPath))
+                        {
+                            data.SaveTo(stream);
+                        }
+                    }
+                });
+
+                MessageBox.Show("התמונה עם הסימונים יוצאה בהצלחה ל-JPEG!", "הצלחה", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"שגיאה בייצוא התמונה: {ex.Message}", "שגיאה", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -1091,19 +1281,33 @@ namespace MyUserApp.ViewModels
                 MessageBox.Show("Please select an image before running AI analysis.", "No Image Selected");
                 return;
             }
-            SetDirty();
-            var mockService = new MockAnnotationService();
-            var aiResults = await mockService.GetAnnotationsAsync(SelectedImage.FilePath);
-            if (aiResults.Any())
+
+            IsAiLoading = true; // מפעיל את ה-ProgressBar ומציג את מסך הטעינה
+            try
             {
-                foreach (var annotation in aiResults)
+                SetDirty();
+                var mockService = new MockAnnotationService();
+                var aiResults = await mockService.GetAnnotationsAsync(SelectedImage.FilePath);
+
+                if (aiResults.Any())
                 {
-                    ExecuteCommand(new AddAnnotationCommand(CurrentAnnotations, annotation));
+                    foreach (var annotation in aiResults)
+                    {
+                        ExecuteCommand(new AddAnnotationCommand(CurrentAnnotations, annotation));
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("AI analysis complete. No issues found.", "AI Analysis");
                 }
             }
-            else
+            catch (Exception ex)
             {
-                MessageBox.Show("AI analysis complete. No issues found.", "AI Analysis");
+                MessageBox.Show($"שגיאה בריצת AI: {ex.Message}", "שגיאה", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                IsAiLoading = false; // מבטיח שה-ProgressBar תמיד ייעלם בסיום (גם אם תהיה שגיאה)
             }
         }
 

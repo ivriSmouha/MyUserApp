@@ -216,8 +216,11 @@ namespace MyUserApp.ViewModels
 
         {
 
-            var openFileDialog = new OpenFileDialog { Multiselect = true, Filter = "Image Files|*.jpg;*.jpeg;*.png;*.gif;*.bmp" };
-
+            var openFileDialog = new OpenFileDialog
+            {
+                Multiselect = true,
+                Filter = "Image & DICOM Files|*.jpg;*.jpeg;*.png;*.gif;*.bmp;*.dcm;*.dicom|DICOM Files (*.dcm, *.dicom)|*.dcm;*.dicom|All Files (*.*)|*.*"
+            };
 
 
             if (openFileDialog.ShowDialog() == true)

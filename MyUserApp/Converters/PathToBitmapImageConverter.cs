@@ -1,8 +1,12 @@
 ﻿// File: MyUserApp/Converters/PathToBitmapImageConverter.cs
+using FellowOakDicom;
+using FellowOakDicom.Imaging;
+using System;
 using System.Globalization;
 using System.IO;
 using System.Windows.Data;
 using System.Windows.Media.Imaging;
+
 
 namespace MyUserApp.Converters
 {
@@ -14,37 +18,69 @@ namespace MyUserApp.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            // Get the full path from the binding.
+ 
             string path = value as string;
             if (string.IsNullOrEmpty(path) || !File.Exists(path))
                 return null;
 
-            // Create a new BitmapImage object.
-            BitmapImage image = new BitmapImage();
+            string ext = Path.GetExtension(path).ToLower();
 
-            // Use BeginInit/EndInit to control the loading process.
-            image.BeginInit();
+            // אם מדובר בקובץ DICOM
+            if (ext == ".dcm" || ext == ".dicom")
+            {
+                try
+                {
+                    var file = DicomFile.Open(path);
+                    var dicomImage = new DicomImage(file.Dataset);
+                    IImage image = dicomImage.RenderImage();
 
-            // Set the URI source of the image.
-            image.UriSource = new Uri(path);
+                    byte[] pixels = image.AsBytes();
 
-            // IMPORTANT: This is the magic line.
-            // It tells WPF to load the image fully into memory at creation time.
-            // Once loaded, the file on disk is no longer needed and the lock is released.
-            image.CacheOption = BitmapCacheOption.OnLoad;
+                    // יצירת WriteableBitmap ישירות מתוך בייטים של הפיקסלים (ללא תלות ב-System.Drawing.Bitmap)
+                    var writeableBmp = new WriteableBitmap(
+                        image.Width,
+                        image.Height,
+                        96, 96,
+                        System.Windows.Media.PixelFormats.Bgra32,
+                        null);
 
-            // Finalize the initialization.
-            image.EndInit();
+                    writeableBmp.WritePixels(
+                        new System.Windows.Int32Rect(0, 0, image.Width, image.Height),
+                        pixels,
+                        image.Width * 4,
+                        0);
 
-            // Freeze the image for performance benefits, as it won't be changed.
-            image.Freeze();
-
-            return image;
+                    writeableBmp.Freeze();
+                    return writeableBmp;
+                }
+                catch
+                {
+                    return null; // מונע קריסה במקרה של קובץ פגום
+                }
+            }
+            else
+            {
+                // עבור תמונות רגילות (JPG, PNG וכו')
+                try
+                {
+                    var bmp = new BitmapImage();
+                    bmp.BeginInit();
+                    bmp.UriSource = new Uri(path);
+                    bmp.CacheOption = BitmapCacheOption.OnLoad;
+                    bmp.EndInit();
+                    bmp.Freeze();
+                    return bmp;
+                }
+                catch
+                {
+                    return null;
+                }
+            }
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            // This converter only works one way.
+
             throw new NotImplementedException();
         }
     }

@@ -167,7 +167,7 @@
 
                             <ListView.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid Height="150">
+                                    <Grid Height="185">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="*"/>
                                             <RowDefinition Height="Auto"/>
@@ -177,32 +177,51 @@
 
                                         <Border Grid.Row="0" Background="#A0000000" VerticalAlignment="Bottom">
                                             <TextBlock Text="{Binding FilePath, Converter={StaticResource FullPathToFileNameConverter}}" Foreground="White" 
-                               HorizontalAlignment="Center" Margin="5" TextTrimming="CharacterEllipsis" ToolTip="{Binding FilePath}"/>
+                           HorizontalAlignment="Center" Margin="5" TextTrimming="CharacterEllipsis" ToolTip="{Binding FilePath}"/>
                                         </Border>
 
-                                        <Button Grid.Row="1" 
-        Content="{Binding Status}" 
-        Command="{Binding ToggleStatusCommand}" 
-        Height="30" 
-        FontWeight="Bold" 
-        ToolTip="לחץ כדי לשנות סטטוס (שמיש/גוז)">
-                                            <Button.Style>
-                                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                                    <Setter Property="Background" Value="{DynamicResource SecondaryBackgroundBrush}"/>
-                                                    <Setter Property="Foreground" Value="White"/>
+                                        <!-- סרגל כפתורים מתחת לתמונה -->
+                                        <Grid Grid.Row="1" Margin="0,3,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
 
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Status}" Value="גוז">
-                                                            <Setter Property="Background" Value="#E74C3C"/>
-                                                        </DataTrigger>
+                                            <!-- כפתור שינוי סטטוס (שמיש/גוז) -->
+                                            <Button Grid.Column="0" 
+                        Content="{Binding Status}" 
+                        Command="{Binding ToggleStatusCommand}" 
+                        Height="30" 
+                        FontWeight="Bold" 
+                        ToolTip="לחץ כדי לשנות סטטוס (שמיש/גוז)">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                        <Setter Property="Background" Value="{DynamicResource SecondaryBackgroundBrush}"/>
+                                                        <Setter Property="Foreground" Value="White"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Status}" Value="גוז">
+                                                                <Setter Property="Background" Value="#E74C3C"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="שמיש">
+                                                                <Setter Property="Background" Value="#2ECC71"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
 
-                                                        <DataTrigger Binding="{Binding Status}" Value="שמיש">
-                                                            <Setter Property="Background" Value="#2ECC71"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Button.Style>
-                                        </Button>
+                                            <!-- כפתור ייצוא ל-JPEG -->
+                                            <Button Grid.Column="1" 
+                        Command="{Binding DataContext.ExportSingleImageCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                        CommandParameter="{Binding}"
+                        Width="35" 
+                        Height="30" 
+                        Margin="3,0,0,0"
+                        Style="{DynamicResource SecondaryButtonStyle}"
+                        ToolTip="ייצוא תמונה זו למחשב כ-JPEG">
+                                                <iconPacks:PackIconModern Kind="Save" Width="14" Height="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                            </Button>
+                                        </Grid>
                                     </Grid>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
@@ -215,25 +234,37 @@
         <GridSplitter Grid.Column="1" Width="5" Background="{DynamicResource PrimaryBackgroundBrush}" HorizontalAlignment="Stretch" />
 
         <!-- Main Content area remains unchanged for now. -->
+        <!-- Main Content area -->
         <Grid Grid.Column="2">
-            <!-- The rest of the file remains the same. -->
             <skia:SKElement x:Name="SkiaElement" 
-                PaintSurface="CanvasView_PaintSurface" 
-                MouseWheel="CanvasView_MouseWheel" 
-                MouseLeftButtonDown="CanvasView_MouseLeftButtonDown" 
-                MouseRightButtonDown="CanvasView_MouseRightButtonDown" 
-                MouseMove="CanvasView_MouseMove" 
-                MouseLeftButtonUp="CanvasView_MouseUp" 
-                MouseRightButtonUp="CanvasView_MouseUp" 
-                KeyDown="SkiaElement_KeyDown" 
-                Focusable="True"/>
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="10">
+        PaintSurface="CanvasView_PaintSurface" 
+        MouseWheel="CanvasView_MouseWheel" 
+        MouseLeftButtonDown="CanvasView_MouseLeftButtonDown" 
+        MouseRightButtonDown="CanvasView_MouseRightButtonDown" 
+        MouseMove="CanvasView_MouseMove" 
+        MouseLeftButtonUp="CanvasView_MouseUp" 
+        MouseRightButtonUp="CanvasView_MouseUp" 
+        KeyDown="SkiaElement_KeyDown" 
+        Focusable="True"/>
+
+            <!-- חיווי טעינה (ProgressBar) שמופיע בזמן ריצת ה-AI -->
+            <Grid Background="#80000000" 
+          Visibility="{Binding IsAiLoading, Converter={StaticResource BooleanToVisibilityConverter}}"
+          Panel.ZIndex="10">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <ProgressBar IsIndeterminate="True" Width="200" Height="25" Margin="0,0,0,10"/>
+                    <TextBlock Text="מבצע ניתוח AI, אנא המתן..." Foreground="White" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- סרגל עליון (כפתורי זום, רוטציה וכו') -->
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="10" Panel.ZIndex="5">
                 <Border Background="{DynamicResource SecondaryBackgroundBrush}" CornerRadius="3" Padding="5" Margin="0,0,10,0"
-                        Visibility="{Binding IsDualRoleUser, Converter={StaticResource BooleanToVisibilityConverter}}">
+                Visibility="{Binding IsDualRoleUser, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock VerticalAlignment="Center" Margin="0,0,10,0">
-                            <Run Text="Active Role:" Foreground="{DynamicResource SecondaryTextBrush}"/>
-                            <Run Text="{Binding ActiveRole, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                    <Run Text="Active Role:" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <Run Text="{Binding ActiveRole, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
                         </TextBlock>
                         <Button Content="Switch" Command="{Binding SwitchRoleCommand}" Style="{DynamicResource SecondaryButtonStyle}"/>
                     </StackPanel>
@@ -258,10 +289,9 @@
                     </StackPanel>
                 </Border>
             </StackPanel>
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="10">
 
-                 
-
+            <!-- סרגל תחתון -->
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="10" Panel.ZIndex="5">
                 <Button Content="Run AI Analysis" Command="{Binding RunAiAnalysisCommand}" Style="{DynamicResource SecondaryButtonStyle}"/>
                 <Button Command="{Binding SaveOnlyCommand}" Margin="10,0,0,0" Style="{StaticResource SaveButtonStyle}" ToolTip="Save all changes and export the full report."/>
                 <Button Content="Save and Finish" Command="{Binding FinishEditingCommand}" Margin="10,0,0,0" Style="{StaticResource PrimaryActionButtonStyle}" ToolTip="Save all changes, export, and return to the project hub."/>
