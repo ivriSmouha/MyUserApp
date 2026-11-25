@@ -40,6 +40,19 @@ namespace MyUserApp.Views
             }
         }
 
+        private void ListView_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+        {
+            if (e.Handled) return;
+
+            e.Handled = true;
+            var eventArg = new System.Windows.Input.MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta)
+            {
+                RoutedEvent = System.Windows.UIElement.MouseWheelEvent,
+                Source = sender
+            };
+            LeftPanelScrollViewer.RaiseEvent(eventArg);
+        }
+
         /// <summary>
         /// This method is called when the ViewModel requests a redraw of the canvas.
         /// </summary>

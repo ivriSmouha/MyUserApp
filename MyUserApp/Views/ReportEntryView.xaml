@@ -74,8 +74,9 @@
                     <ComboBox Grid.Row="3" Grid.Column="1" Margin="5" ItemsSource="{Binding Reasons}" SelectedItem="{Binding SelectedReason}" IsEditable="False"/>
 
                     <TextBlock Grid.Row="4" Text="Date of Test:" VerticalAlignment="Center" Margin="5"/>
-                    <ComboBox Grid.Row="4" Grid.Column="1" Margin="5" ItemsSource="{Binding TestDates}" SelectedItem="{Binding SelectedTestDate}" IsEditable="False"/>
+                    <TextBox Grid.Row="4" Grid.Column="1" Margin="5" Text="{Binding SelectedTestDate, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"/>
 
+                    
                     <TextBlock Grid.Row="5" Text="Inspector Name:" VerticalAlignment="Center" Margin="5"/>
                     <ComboBox Grid.Row="5" Grid.Column="1" Margin="5" ItemsSource="{Binding Usernames}" SelectedItem="{Binding SelectedInspector}"/>
 

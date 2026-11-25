@@ -42,7 +42,7 @@ namespace MyUserApp.ViewModels
 
         public ObservableCollection<string> Usernames { get; }
 
-        public ObservableCollection<string> TestDates { get; }
+       
 
         #endregion
 
@@ -194,7 +194,7 @@ namespace MyUserApp.ViewModels
 
             Usernames = new ObservableCollection<string>(UserService.Instance.Users.Select(u => u.Username));
 
-            TestDates = new ObservableCollection<string>(options.TestDates);
+            
 
 
 
@@ -332,6 +332,8 @@ namespace MyUserApp.ViewModels
 
         /// </summary>
 
+
+
         private void SubmitReport(object obj)
 
         {
@@ -391,6 +393,8 @@ namespace MyUserApp.ViewModels
                 AircraftSide = SelectedAircraftSide,
 
                 Reason = SelectedReason,
+
+                TestDate = SelectedTestDate,
 
                 InspectorName = SelectedInspector,
 

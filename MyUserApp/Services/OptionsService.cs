@@ -71,7 +71,7 @@ namespace MyUserApp.Services
             Options = new AppOptionsModel
             {
                 AircraftTypes = { "Boeing 737", "Airbus A320" },
-                AircraftSides = { "Left", "Right", "Top", "Bottom" },
+                AircraftSides = { "L", "R"},
                 Reasons = { "Routine Check", "Reported Issue" },
                 TailNumbers = { "N123UA", "N456SW", "N789DL" },
                 TestDates = new ObservableCollection<string> { DateTime.Today.ToString("yyyy-MM-dd") }

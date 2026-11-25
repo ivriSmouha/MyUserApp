@@ -10,6 +10,7 @@ using Spire.Xls;       // להמרה ל-PDF
 using System.Diagnostics; // לפתיחת הקובץ במחשב
 using System.Windows;
 using FellowOakDicom;
+using MyUserApp.Models;
 using FellowOakDicom.Imaging;
 
 using System.Windows.Input; // Added for Cursor support
@@ -39,6 +40,17 @@ namespace MyUserApp.ViewModels
         // In-memory collections for the current editing session
         private readonly Dictionary<string, ObservableCollection<AnnotationModel>> _sessionAnnotations = new Dictionary<string, ObservableCollection<AnnotationModel>>();
         private readonly Dictionary<string, ImageAdjustmentModel> _sessionAdjustments = new Dictionary<string, ImageAdjustmentModel>();
+
+
+        private string _origAircraftType;
+        private string _origTailNumber;
+        private string _origAircraftSide;
+        private string _origReason;
+        private string _origTestDate;
+        private string _origInspectorName;
+        private string _origVerifierName;
+        private string _origProjectName;
+        private Dictionary<string, List<AnnotationModel>> _origAnnotationsByImage;
 
         // User interaction state
         private enum InteractionMode { None, Drawing, Panning }
@@ -83,6 +95,9 @@ namespace MyUserApp.ViewModels
                 OnPropertyChanged();
             }
         }
+
+      
+
 
         /// <summary>
         /// The currently selected image path for editing.
@@ -242,10 +257,132 @@ namespace MyUserApp.ViewModels
         public ICommand ResetContrastCommand { get; }
         public ICommand SwitchRoleCommand { get; }
         public ICommand ExportSingleImageCommand { get; }
+        public ICommand ExportSelectedImagesCommand { get; }
         #endregion
 
         public event Action OnFinished;
         public event Action RequestCanvasInvalidation;
+
+        private async Task ExportSelectedImagesAsync()
+        {
+            // מנקה פוקוס כדי שה-CheckBox האחרון שעליו לחצת יעדכן את הערך שלו מיד
+            Keyboard.ClearFocus();
+
+            // בדיקה מדויקת של כל התמונות ברשימה והסטטוס שלהן
+            foreach (var thumb in ImageThumbnails)
+            {
+                System.Diagnostics.Debug.WriteLine($"File: {Path.GetFileName(thumb.FilePath)} -> IsSelectedForExport = {thumb.IsSelectedForExport}");
+            }
+
+            // סינון רק של התמונות שסומנו ב-V
+            var selectedImagesToExport = ImageThumbnails.Where(img => img.IsSelectedForExport).ToList();
+
+            if (!selectedImagesToExport.Any())
+            {
+                MessageBox.Show("לא נבחרו תמונות לייצוא. אנא סמני לפחות תמונה אחת עם V.", "שגיאה", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // בחירת תיקיית יעד
+            var folderDialog = new Microsoft.Win32.OpenFolderDialog
+            {
+                Title = "בחר תיקייה לשמירת התמונות המסומנות"
+            };
+
+            if (folderDialog.ShowDialog() != true)
+                return;
+
+            string outputDirectory = folderDialog.FolderName;
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    foreach (var item in selectedImagesToExport)
+                    {
+                        string imagePath = item.FilePath;
+                        if (!File.Exists(imagePath)) continue;
+
+                        _sessionAdjustments.TryGetValue(imagePath, out var adjustments);
+
+                        SKBitmap originalBitmap = null;
+                        string ext = Path.GetExtension(imagePath).ToLower();
+
+                        // טעינת תמונה (תמיכה רגילה או DICOM)
+                        if (ext == ".dcm" || ext == ".dicom")
+                        {
+                            var file = DicomFile.Open(imagePath);
+                            var dicomImage = new DicomImage(file.Dataset);
+
+                            using (var renderedImage = dicomImage.RenderImage())
+                            using (var bitmap = renderedImage.As<System.Drawing.Bitmap>())
+                            using (var stream = new MemoryStream())
+                            {
+                                bitmap.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
+                                stream.Position = 0;
+                                originalBitmap = SKBitmap.Decode(stream);
+                            }
+                        }
+                        else
+                        {
+                            using (var tempStream = new MemoryStream(File.ReadAllBytes(imagePath)))
+                            {
+                                originalBitmap = SKBitmap.Decode(tempStream);
+                            }
+                        }
+
+                        if (originalBitmap == null) continue;
+
+                        using (originalBitmap)
+                        using (var exportSurface = SKSurface.Create(new SKImageInfo(originalBitmap.Width, originalBitmap.Height)))
+                        {
+                            var canvas = exportSurface.Canvas;
+
+                            using (var bitmapPaint = new SKPaint { ColorFilter = CreateColorFilter(adjustments?.Brightness ?? 0f, adjustments?.Contrast ?? 1f) })
+                            {
+                                canvas.DrawBitmap(originalBitmap, 0, 0, bitmapPaint);
+                            }
+
+                            // ציור האנוטציות במידת وجودן
+                            if (_sessionAnnotations.TryGetValue(imagePath, out var annotationsForThisImage))
+                            {
+                                using (var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 4 })
+                                {
+                                    foreach (var annotation in annotationsForThisImage)
+                                    {
+                                        paint.Color = GetAnnotationSKColor(annotation);
+                                        canvas.DrawOval(
+                                            (float)(annotation.CenterX * originalBitmap.Width),
+                                            (float)(annotation.CenterY * originalBitmap.Height),
+                                            (float)(annotation.Radius * originalBitmap.Width),
+                                            (float)(annotation.Radius * originalBitmap.Width),
+                                            paint
+                                        );
+                                    }
+                                }
+                            }
+
+                            // שמירה אוטומטית של התמונה כ-JPG בתיקייה שנבחרה
+                            string outputFileName = Path.ChangeExtension(Path.GetFileName(imagePath), ".jpg");
+                            string outputFilePath = Path.Combine(outputDirectory, outputFileName);
+
+                            using (var image = exportSurface.Snapshot())
+                            using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 95))
+                            using (var stream = File.OpenWrite(outputFilePath))
+                            {
+                                data.SaveTo(stream);
+                            }
+                        }
+                    }
+                });
+
+                MessageBox.Show($"כל {selectedImagesToExport.Count} התמונות המסומנות יוצאו בהצלחה לתיקייה:\n{outputDirectory}", "ייצוא הושלם", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"שגיאה במהלך הייצוא המרוכז: {ex.Message}", "שגיאה", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
 
         /// <summary>
         /// Initializes the Image Editor ViewModel with a specific report and user role.
@@ -285,7 +422,27 @@ namespace MyUserApp.ViewModels
             {
                 _sessionAdjustments = new Dictionary<string, ImageAdjustmentModel>(report.AdjustmentsByImage);
             }
+            // שמירת המצב ההתחלתי לשחזור במקרה של לחיצה על "לא"
+            _origAircraftType = _report.AircraftType;
+            _origTailNumber = _report.TailNumber;
+            _origAircraftSide = _report.AircraftSide;
+            _origReason = _report.Reason;
+            _origTestDate = _report.TestDate;
+            _origInspectorName = _report.InspectorName;
+            _origVerifierName = _report.VerifierName;
+            _origProjectName = _report.ProjectName;
 
+            _origAnnotationsByImage = _sessionAnnotations.ToDictionary(
+                entry => entry.Key,
+                entry => entry.Value.Select(a => new AnnotationModel
+                {
+                    Author = a.Author,
+                    CenterX = a.CenterX,
+                    CenterY = a.CenterY,
+                    Radius = a.Radius,
+                    IsSelected = a.IsSelected
+                }).ToList()
+            );
             var options = OptionsService.Instance.Options;
             AircraftTypes = new ObservableCollection<string>(options.AircraftTypes);
             TailNumbers = new ObservableCollection<string>(options.TailNumbers);
@@ -293,6 +450,7 @@ namespace MyUserApp.ViewModels
             Reasons = new ObservableCollection<string>(options.Reasons);
             Usernames = new ObservableCollection<string>(UserService.Instance.Users.Select(u => u.Username));
             TestDates = new ObservableCollection<string>(options.TestDates);
+            ExportSelectedImagesCommand = new RelayCommand(async _ => await ExportSelectedImagesAsync());
 
             UndoCommand = new RelayCommand(Undo, CanUndo);
             RedoCommand = new RelayCommand(Redo, CanRedo);
@@ -405,6 +563,8 @@ namespace MyUserApp.ViewModels
         /// <summary>
         /// Saves all changes to the report model and exports the annotated images to a folder.
         /// </summary>
+
+        
         public async Task SaveAndExportFullReportAsync()
         {
             
@@ -775,6 +935,46 @@ namespace MyUserApp.ViewModels
         /// <summary>
         /// Handles the logic for finishing the editing session, prompting to save if needed.
         /// </summary>
+        private void RevertUnsavedChanges()
+        {
+            _report.AircraftType = _origAircraftType;
+            _report.TailNumber = _origTailNumber;
+            _report.AircraftSide = _origAircraftSide;
+            _report.Reason = _origReason;
+            _report.TestDate = _origTestDate;
+            _report.InspectorName = _origInspectorName;
+            _report.VerifierName = _origVerifierName;
+            _report.ProjectName = _origProjectName;
+
+            _sessionAnnotations.Clear();
+            if (_origAnnotationsByImage != null)
+            {
+                foreach (var entry in _origAnnotationsByImage)
+                {
+                    _sessionAnnotations[entry.Key] = new ObservableCollection<AnnotationModel>(
+                        entry.Value.Select(a => new AnnotationModel
+                        {
+                            Author = a.Author,
+                            CenterX = a.CenterX,
+                            CenterY = a.CenterY,
+                            Radius = a.Radius,
+                            IsSelected = a.IsSelected
+                        })
+                    );
+                }
+            }
+
+            if (SelectedImage != null && _sessionAnnotations.TryGetValue(SelectedImage.FilePath, out var current))
+            {
+                CurrentAnnotations = current;
+                OnPropertyChanged(nameof(CurrentAnnotations));
+                InvalidateCanvas();
+            }
+        }
+
+        /// <summary>
+        /// Handles the logic for finishing the editing session, prompting to save if needed.
+        /// </summary>
         private async Task HandleFinishEditingAsync()
         {
             if (IsDirty)
@@ -787,6 +987,7 @@ namespace MyUserApp.ViewModels
                 }
                 else if (result == MessageBoxResult.No)
                 {
+                    RevertUnsavedChanges();
                     OnFinished?.Invoke();
                 }
             }
@@ -809,8 +1010,18 @@ namespace MyUserApp.ViewModels
                 await SaveAndExportFullReportAsync();
                 return true;
             }
-            return result == MessageBoxResult.No;
+            if (result == MessageBoxResult.No)
+            {
+                RevertUnsavedChanges();
+                return true;
+            }
+            return false;
         }
+
+        /// <summary>
+        /// Checks if the view can be closed, prompting to save if there are changes.
+        /// </summary>
+
         #endregion
 
         #region User Interaction and Drawing
@@ -1075,6 +1286,25 @@ namespace MyUserApp.ViewModels
             "17H", "18H", "17", "18", "19", "20", "21H", "22H", "21", "22"
         };
 
+        private static readonly string ReportImagesRoot =
+    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ReportImages");
+
+        private static bool IsInsideFolder(string path, string folder)
+        {
+            string full = Path.GetFullPath(path);
+            string root = Path.GetFullPath(folder).TrimEnd('\\') + "\\";
+            return full.StartsWith(root, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private string GetReportImageFolder()
+        {
+            string? existing = _report.ImagePaths
+                .Select(Path.GetDirectoryName)
+                .FirstOrDefault(d => d != null && IsInsideFolder(d, ReportImagesRoot));
+            string folder = existing ?? Path.Combine(ReportImagesRoot, _report.ReportId.ToString());
+            Directory.CreateDirectory(folder);
+            return folder;
+        }
 
         /// <summary>
         /// Opens a file dialog to add new images to the report.
@@ -1084,17 +1314,56 @@ namespace MyUserApp.ViewModels
             var openFileDialog = new OpenFileDialog
             {
                 Multiselect = true,
-                Filter = "Image Files|*.jpg;*.jpeg;*.png;*.gif;*.bmp"
+                Filter = "Image & DICOM Files|*.jpg;*.jpeg;*.png;*.gif;*.bmp;*.dcm;*.dicom|All Files (*.*)|*.*"
             };
 
             if (openFileDialog.ShowDialog() == true)
             {
                 // 1. איסוף כל הנתיבים (הקיימים והחדשים שנבחרו)
                 var allPaths = ImageThumbnails.ToList();
-                // אנחנו עוברים על כל הקבצים שנבחרו והופכים כל אחד מהם למודל החדש שלנו
-                var newItems = openFileDialog.FileNames.Select(path => new ImageItemModel(path, SetDirty));
 
-                // עכשיו מוסיפים את האובייקטים החדשים לרשימה
+                // 1. בדיקה שאין כפילויות של שמות קבצים שכבר קיימים בדוח
+                var existingNames = new HashSet<string>(
+                    ImageThumbnails.Select(i => Path.GetFileName(i.FilePath)), StringComparer.OrdinalIgnoreCase);
+
+                var skipped = new List<string>();
+                var picked = new List<string>();
+
+                foreach (var file in openFileDialog.FileNames)
+                {
+                    if (existingNames.Add(Path.GetFileName(file)))
+                        picked.Add(file);
+                    else
+                        skipped.Add(Path.GetFileName(file));
+                }
+
+                if (skipped.Any())
+                {
+                    MessageBox.Show("Already in the report, not added again:\n" + string.Join("\n", skipped));
+                }
+
+                if (!picked.Any()) return;
+
+                // 2. העתקת הקבצים הנבחרים לתיקיית הגיבוי הפנימית (הגנה על קבצי המקור של המשתמש)
+                string folder = GetReportImageFolder();
+                var newItems = new List<ImageItemModel>();
+
+                foreach (var source in picked)
+                {
+                    string destination = Path.Combine(folder, Path.GetFileName(source));
+                    try
+                    {
+                        File.Copy(source, destination, overwrite: false);
+                        newItems.Add(new ImageItemModel(destination, SetDirty));
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Could not copy {Path.GetFileName(source)}:\n{ex.Message}");
+                    }
+                }
+
+                // 3. הוספת העותקים לרשימת הנתיבים להמשך המיון
+                 allPaths = ImageThumbnails.ToList();
                 allPaths.AddRange(newItems);
 
                 // 2. ביצוע המיון לפי הלוגיקה שלך
@@ -1112,7 +1381,7 @@ namespace MyUserApp.ViewModels
                     // אם לא נמצא (index == -1), נחזיר ערך גבוה מאוד כדי שיעבור לסוף
                     return index == -1 ? int.MaxValue : index;
                 })
-                .ThenBy(path => path) // מיון פנימי אלפביתי למקרים של שמות לא מוכרים
+                .ThenBy(item => item.FilePath, StringComparer.OrdinalIgnoreCase) // התיקון: השוואת מחרוזת נתיב הקובץ בצורה בטוחה
                 .ToList();
 
                 // 3. עדכון ה-ObservableCollection והמודל של הדו"ח
@@ -1457,28 +1726,42 @@ namespace MyUserApp.ViewModels
         #endregion
     }
 
-    
+
     public class ImageItemModel : BaseViewModel
     {
         public string FilePath { get; set; }
 
         private string _status = "שמיש";
         public string Status
-        { 
+        {
             get => _status;
             set { _status = value; OnPropertyChanged(); }
         }
 
+        // המאפיין חייב להיות ציבורי (public) ולקרוא ל-OnPropertyChanged
+        private bool _isSelectedForExport;
+        public bool IsSelectedForExport
+        {
+            get => _isSelectedForExport;
+            set
+            {
+                if (_isSelectedForExport == value) return;
+                _isSelectedForExport = value;
+                OnPropertyChanged();
+            }
+        }
+
+
+
         public ICommand ToggleStatusCommand { get; }
 
-        // הבנאי מקבל את הנתיב, וגם פונקציה שתסמן שיש שינויים בפרויקט כשלוחצים על הכפתור
         public ImageItemModel(string path, Action setDirtyAction)
         {
             FilePath = path;
             ToggleStatusCommand = new RelayCommand(_ =>
             {
                 Status = Status == "שמיש" ? "גו\"ז" : "שמיש";
-                setDirtyAction?.Invoke(); // מעדכן את הפרויקט הראשי שצריך לשמור
+                setDirtyAction?.Invoke();
             });
         }
     }

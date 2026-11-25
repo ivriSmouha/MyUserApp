@@ -66,6 +66,10 @@
     <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.12" />
   </ItemGroup>
 
+	<ItemGroup>
+		<Resource Include="Assets\1.PNG" />
+	</ItemGroup>
+	
   <ItemGroup>
     <Resource Include="Cursors\account.cur" />
     <Resource Include="Cursors\alternate.cur" />

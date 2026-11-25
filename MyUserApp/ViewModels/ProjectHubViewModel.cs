@@ -22,7 +22,7 @@ namespace MyUserApp.ViewModels
     {
        
         // A placeholder image URI used when no project image is available.
-        private const string DefaultImagePath = "C:\\Users\\User\\Source\\Repos\\MyUserApp\\MyUserApp\\Assets\\1.PNG";
+        //private const string DefaultImagePath = "C:\\Users\\User\\Source\\Repos\\MyUserApp\\MyUserApp\\Assets\\1.PNG";
        
         // The underlying collection of projects.
         private readonly ObservableCollection<ProjectDisplayViewModel> _recentProjects;
@@ -111,22 +111,65 @@ namespace MyUserApp.ViewModels
 
             // 2. המרה של כל הדוחות ל-ViewModels של פרויקטים
             var allProjectsList = userProjects.Select(report => new ProjectDisplayViewModel(report, user)).ToList();
-           
-            // 3. לוגיקת הקיבוץ לתקיות - זה מה שהיה חסר!
+
+            // 3. קיבוץ לפי שם מטוס + מספר זנב + תאריך, ומיון L ואז R בתוך התיקייה
+            string GetReportDateKey(ProjectDisplayViewModel p)
+            {
+                if (!string.IsNullOrWhiteSpace(p.Report?.TestDate))
+                    return p.Report.TestDate.Trim();
+
+                return p.Report?.CreationDate != default
+                    ? p.Report.CreationDate.ToString("dd/MM/yyyy")
+                    : p.CreationDate.ToString("dd/MM/yyyy");
+            }
+
+            int GetSideSortOrder(ProjectDisplayViewModel p)
+            {
+                string name = p.ProjectName ?? string.Empty;
+                if (name.Contains("(L)", StringComparison.OrdinalIgnoreCase)) return 0;
+                if (name.Contains("(R)", StringComparison.OrdinalIgnoreCase)) return 1;
+                return 2;
+            }
+
             var groups = allProjectsList
-                .GroupBy(p => ExtractAircraftName(p.ProjectName)) // מקבץ לפי שם המטוס
-                .Select(g => new AircraftFolder
+                .GroupBy(p =>
                 {
-                    AircraftName = g.Key,
-                    Projects = new ObservableCollection<ProjectDisplayViewModel>(g)
+                    string aircraft = !string.IsNullOrWhiteSpace(p.Report?.AircraftType)
+                        ? p.Report.AircraftType.Trim()
+                        : ExtractAircraftName(p.ProjectName);
+
+                    string tail = !string.IsNullOrWhiteSpace(p.Report?.TailNumber)
+                        ? p.Report.TailNumber.Trim()
+                        : string.Empty;
+
+                    string dateStr = GetReportDateKey(p);
+
+                    return (Aircraft: aircraft, Tail: tail, Date: dateStr);
+                })
+                .Select(g =>
+                {
+                    string folderTitle = string.IsNullOrWhiteSpace(g.Key.Tail)
+                        ? $"{g.Key.Aircraft} - {g.Key.Date}"
+                        : $"{g.Key.Aircraft} * {g.Key.Tail} - {g.Key.Date}";
+
+                    var sortedProjects = g
+                        .OrderBy(GetSideSortOrder)
+                        .ThenBy(p => p.ProjectName)
+                        .ToList();
+
+                    return new AircraftFolder
+                    {
+                        AircraftName = folderTitle,
+                        Projects = new ObservableCollection<ProjectDisplayViewModel>(sortedProjects)
+                    };
                 });
 
             GroupedProjects = new ObservableCollection<AircraftFolder>(groups);
+
             _recentProjects = new ObservableCollection<ProjectDisplayViewModel>(allProjectsList);
             ProjectsView = CollectionViewSource.GetDefaultView(_recentProjects);
             ProjectsView.SortDescriptions.Add(new SortDescription(nameof(ProjectDisplayViewModel.LastModifiedDate), ListSortDirection.Descending));
             ProjectsView.Filter = FilterProjects;
-
 
             NextImageCommand = new RelayCommand(ShowNextImage, _ => CanShowNextImage());
             PreviousImageCommand = new RelayCommand(ShowPreviousImage, _ => CanShowPreviousImage());
@@ -271,11 +314,11 @@ namespace MyUserApp.ViewModels
 
                 MessageBox.Show("הקובץ נפתח. בצעי שינויים, שמרי, ולחצי אישור לייצוא PDF.");
 
-                
+                string safeFolderName = string.Join("_", folder.AircraftName.Split(Path.GetInvalidFileNameChars()));
                 SaveFileDialog saveFileDialog = new SaveFileDialog
                 {
                     Filter = "PDF Files (*.pdf)|*.pdf",
-                    FileName = $"דוח משולב {folder.AircraftName}.pdf"
+                    FileName = $"דוח משולב {safeFolderName}.pdf"
                 };
 
                 if (saveFileDialog.ShowDialog() == true)
@@ -471,7 +514,20 @@ namespace MyUserApp.ViewModels
             // If no image could be loaded, use the default placeholder.
             if (imageToShow == null)
             {
-                imageToShow = new BitmapImage(new Uri(DefaultImagePath));
+                try
+                {
+                    var bitmap = new BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.UriSource = new Uri("pack://application:,,,/Assets/1.PNG", UriKind.Absolute);
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.EndInit();
+                    bitmap.Freeze();
+                    imageToShow = bitmap;
+                }
+                catch
+                {
+                    imageToShow = null;
+                }
                 ImageCounterText = "No Images";
             }
             PreviewImageSource = imageToShow;
